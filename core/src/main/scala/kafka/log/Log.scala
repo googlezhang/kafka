@@ -558,9 +558,13 @@ class Log(val dir: File,
         file.delete()
       }
     
-      segments.lastEntry() match {
-        case null => 
-        case entry => entry.getValue.index.trimToValidSize()
+      val lastSegmentOpt = segments.lastEntry() match {
+        case null => None
+        case entry => {
+          val lastSegment = entry.getValue
+          lastSegment.index.trimToValidSize()
+          Some(lastSegment)
+        }
       }
       val segment = new LogSegment(dir, 
                                    startOffset = newOffset,
@@ -573,7 +577,13 @@ class Log(val dir: File,
         throw new KafkaException("Trying to roll a new log segment for topic partition %s with start offset %d while it already exists.".format(name, newOffset))
       
       // schedule an asynchronous flush of the old segment
-      scheduler.schedule("flush-log", () => flush(newOffset), delay = 0L)
+      def flushOldLogSegment() {
+        lastSegmentOpt.foreach(lastSegment => {
+          flush(newOffset)
+          info("Flushed old log segment for '" + name + "' " + Log.filenamePrefixFromOffset(lastSegment.baseOffset))
+        })
+      }
+      scheduler.schedule("flush-log", flushOldLogSegment, delay = 0L)
       
       info("Rolled new log segment for '" + name + "' in %.0f ms.".format((System.nanoTime - start) / (1000.0*1000.0)))
       
