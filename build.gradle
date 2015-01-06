@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+description "Apache Kafka is publish-subscribe messaging rethought as a distributed commit log."
+
 buildscript {
   repositories {
     mavenCentral()
@@ -197,7 +199,9 @@ project(':core') {
   println "Building project 'core' with Scala version $scalaVersion"
 
   apply plugin: 'scala'
-  archivesBaseName = "kafka_${baseScalaVersion}"
+
+  archivesBaseName = "${rootProject.name}_${baseScalaVersion}"
+  ext.distributionBaseName = "${archivesBaseName}-${version}"
 
   def (major, minor, trivial) = scalaVersion.tokenize('.')
 
@@ -248,15 +252,54 @@ project(':core') {
     into "$buildDir/dependant-libs-${scalaVersion}"
   }
 
-  tasks.create(name: "releaseTarGz", dependsOn: configurations.archives.artifacts, type: Tar) { 
-    into "kafka_${baseScalaVersion}-${version}"
-    compression = Compression.GZIP 
-    from(project.file("../bin")) { into "bin/" }
+  task releaseDeb(type:Exec, dependsOn:["distDir"]) {
+
+    commandLine 'fpm',
+        "-t", "deb",
+        "-s", "dir",
+        "-C", "${project.distsDir}/${distributionBaseName}",
+        "--force",
+        "--version", version,
+        "--package", "${project.distsDir}/${distributionBaseName}.deb",
+        "--name", "kafka",
+        "--description" , rootProject.description,
+        "--url", "https://kafka.apache.org",
+        "--license", "apache2",
+        "--maintainer", "Apache Kafka Developers <dev@kafka.apache.org>",
+        "--vendor", "Apache Kafka",
+        "--exclude", "*windows*",
+        "--category", "net",
+        "--post-install", "${rootProject.projectDir}/packaging/debian/control/postinstall",
+        "--pre-uninstall", "${rootProject.projectDir}/packaging/debian/control/preuninstall",
+        "--post-uninstall", "${rootProject.projectDir}/packaging/debian/control/postuninstall",
+        "--deb-init", "${rootProject.projectDir}/packaging/debian/init.d/kafka",
+        "--deb-default", "${rootProject.projectDir}/packaging/debian/default/kafka",
+
+        // files to map
+        "bin=/usr/lib/kafka",
+        "libs=/usr/lib/kafka",
+        "config/producer.properties=/etc/kafka/producer.properties",
+        "config/consumer.properties=/etc/kafka/consumer.properties",
+        "config/log4j.properties=/etc/kafka/log4j.properties",
+        "config/server.properties=/etc/kafka/server.properties",
+        "config/zookeeper.properties=/etc/kafka/zookeeper.properties",
+        "config/tools-log4j.properties=/etc/kafka/tools-log4j.properties"
+  }
+
+  tasks.create(name: "distDir", dependsOn: [configurations.archives.artifacts], type: Copy) {
+    from (project.file("../bin")) {into "bin/"}
     from(project.file("../config")) { into "config/" }
     from '../LICENSE'
     from '../NOTICE'
     from(configurations.runtime) { into("libs/") }
     from(configurations.archives.artifacts.files) { into("libs/") }
+    into "${project.distsDir}/${distributionBaseName}"
+  }
+
+  tasks.create(name: "releaseTarGz", dependsOn: ["distDir"], type: Tar) {
+    into distributionBaseName
+    compression = Compression.GZIP
+    from "${project.distsDir}/${distributionBaseName}"
   }
 
   jar {
