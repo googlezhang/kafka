@@ -22,11 +22,11 @@ fi
 
 base_dir=$(dirname $0)/..
 
-LIB_DIR=${LIB_DIR:-$base_dir/libs}
-CONFIG_DIR=${CONFIG_DIR:-$base_dir/config}
-LOG_DIR=${LOG_DIR:-$base_dir/logs}
-
 # create logs directory
+if [ "x$LOG_DIR" = "x" ]; then
+    LOG_DIR="$base_dir/logs"
+fi
+
 if [ ! -d "$LOG_DIR" ]; then
     mkdir -p "$LOG_DIR"
 fi
@@ -66,7 +66,7 @@ do
 done
 
 # classpath addition for release
-for file in $LIB_DIR/*.jar;
+for file in $base_dir/libs/*.jar;
 do
   CLASSPATH=$CLASSPATH:$file
 done
@@ -88,7 +88,7 @@ fi
 
 # Log4j settings
 if [ -z "$KAFKA_LOG4J_OPTS" ]; then
-  KAFKA_LOG4J_OPTS="-Dlog4j.configuration=file:$CONFIG_DIR/tools-log4j.properties"
+  KAFKA_LOG4J_OPTS="-Dlog4j.configuration=file:$base_dir/config/tools-log4j.properties"
 fi
 
 KAFKA_LOG4J_OPTS="-Dkafka.logs.dir=$LOG_DIR $KAFKA_LOG4J_OPTS"

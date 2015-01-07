@@ -1,4 +1,0 @@
-export LIB_DIR=/usr/lib/kafka/libs
-export CONFIG_DIR=/etc/kafka
-export LOG_DIR=/var/log/kafka
-export DISABLED=true
