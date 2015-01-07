@@ -200,7 +200,7 @@ project(':core') {
 
   apply plugin: 'scala'
 
-  archivesBaseName = "kafka_${baseScalaVersion}"
+  archivesBaseName = "${rootProject.name}_${baseScalaVersion}"
   ext.distributionBaseName = "${archivesBaseName}-${version}"
 
   def (major, minor, trivial) = scalaVersion.tokenize('.')
