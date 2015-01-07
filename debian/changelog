@@ -1,3 +1,9 @@
+kafka (0.8.2~uber1) unstable; urgency=low
+
+  * Uber build
+
+ -- Jeremy Grosser <jeremy@synack.me>  Wed, 07 Jan 2015 13:05:32 -0800
+
 kafka (0.8.1.1-5) unstable; urgency=low
 
   * include slf4j-simple JAR in the binary package;
