@@ -1,0 +1,12 @@
+kafka (0.8.1.1-5) unstable; urgency=low
+
+  * include slf4j-simple JAR in the binary package;
+  * split the package to kafka and kafka-daemon.
+
+ -- Aleksey Morarash <aleksey.morarash@gmail.com>  Sun, 10 Aug 2014 19:22:00 +0300
+
+kafka (0.8.1.1-1) unstable; urgency=low
+
+  * Initial release.
+
+ -- Aleksey Morarash <aleksey.morarash@gmail.com>  Wed, 16 Jun 2014 13:08:00 +0300
