@@ -6,15 +6,15 @@ Build-Depends: debhelper (>= 8.0.0), openjdk-7-jdk, curl
 Standards-Version: 3.9.3
 Homepage: http://kafka.apache.org/
 
-Package: kafka
+Package: kafka8
 Architecture: all
 Depends: openjdk-7-jre-headless
 Description: Distributed, partitioned, replicated commit log service.
  Kafka is a distributed, partitioned, replicated commit log service.
  It provides the functionality of a messaging system, but with a unique design.
 
-Package: kafka-daemon
+Package: kafka8-daemon
 Architecture: all
-Depends: kafka
+Depends: kafka8
 Description: Scripts needed to run Kafka as system daemon
  Scripts needed to run Kafka as system daemon.
