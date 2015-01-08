@@ -1,4 +1,4 @@
-Source: kafka
+Source: kafka8
 Section: database
 Priority: extra
 Maintainer: Aleksey Morarash <aleksey.morarash@gmail.com>
