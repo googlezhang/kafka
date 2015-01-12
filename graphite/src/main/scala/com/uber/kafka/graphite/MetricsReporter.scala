@@ -1,4 +1,4 @@
-package kafka.graphite
+package com.uber.kafka.graphite
 
 import com.yammer.metrics.Metrics
 import com.yammer.metrics.core.{Clock, Metric, MetricName}
