@@ -26,13 +26,18 @@ private object MetricsReporter extends KafkaMetricsReporterMBean {
     // automatically start polling
     start(pollingPeriodSecs, TimeUnit.SECONDS)
 
-    // The following is ported from http://grepcode.com/file/repo1.maven.org/maven2/com.yammer.metrics/metrics-graphite/2.2.0/com/yammer/metrics/reporting/GraphiteReporter.java#285
-    // with an extra name.getName.replace call to prevent the '.' in metric names from creating
-    // unnecessary hierarchy levels in graphite.
     override def sanitizeName(name: MetricName): String = {
-      name.getGroup + '.' + name.getType + '.' +
-        (if (name.hasScope) name.getScope + '.' else "") +
-        metricSeparator.map(c => name.getName.replace('.', c)).getOrElse(name.getName)
+      // The following rewrites the metric name so that all the additional tags are not lost.
+      // NOTE: This is essentially resurrecting the format of kafka 0.8.1
+      name.getGroup + '.' + name.getType + '.' + name.getMBeanName.split(',').tail.flatMap(kv => {
+        kv.split('=') match {
+          case Array(_, v) => metricSeparator.map(c => v.replace('.', c)).orElse(Some(v))
+          case _ => {
+            logger.warn("Unrecognized key-value format: " + name)
+            None
+          }
+        }
+      }).mkString(".")
     }
   }
 
