@@ -1,7 +1,7 @@
 package com.uber.kafka.graphite
 
 import com.yammer.metrics.Metrics
-import com.yammer.metrics.core.{Clock, Metric, MetricName}
+import com.yammer.metrics.core.{Clock, Metric, MetricName, MetricPredicate}
 import com.yammer.metrics.reporting.GraphiteReporter
 import java.util.concurrent.TimeUnit
 import kafka.metrics.{KafkaMetricsConfig, KafkaMetricsReporter, KafkaMetricsReporterMBean}
@@ -19,7 +19,7 @@ private object MetricsReporter extends KafkaMetricsReporterMBean {
                  pollingPeriodSecs: Long) extends
       GraphiteReporter(Metrics.defaultRegistry,
                        groupPrefix,
-                       null,
+                       MetricPredicate.ALL,
                        new GraphiteReporter.DefaultSocketProvider(graphiteHost, graphitePort),
                        Clock.defaultClock) {
 
