@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue, CountDownLatch, TimeUnit}
 
 import scala.collection.JavaConversions._
+import scala.io.Source
 
 import joptsimple.OptionParser
 
@@ -95,6 +96,12 @@ object MirrorMaker extends Logging {
       .describedAs("Java regex (String)")
       .ofType(classOf[String])
 
+    val topicMappingsOpt = parser.accepts("topic.mappings",
+      "Path to file containing line deliminated mappings of topics to consume from and produce to.")
+      .withRequiredArg()
+      .describedAs("Path to mappings file")
+      .ofType(classOf[String])
+
     val helpOpt = parser.accepts("help", "Print this message.")
     
     if(args.length == 0)
@@ -126,6 +133,22 @@ object MirrorMaker extends Logging {
     // create a data channel btw the consumers and the producers
     val mirrorDataChannel = new DataChannel(bufferSize, numConsumers, numProducers)
 
+    // initialize topic mappings for rewriting topic names between consuming side and producing side
+    val topicMappings = if (options.has(topicMappingsOpt)) {
+      val topicMappingsFile = options.valueOf(topicMappingsOpt)
+      val topicMappingPattern = """\s*(\S+)\s+(\S+)\s*""".r
+      Source.fromFile(topicMappingsFile).getLines().flatMap(_ match {
+        case topicMappingPattern(consumerTopic, producerTopic) => {
+          info("Topic mapping: '" + consumerTopic + "' -> '" + producerTopic + "'")
+          Some(consumerTopic -> producerTopic)
+        }
+        case line => {
+          error("Invalid mapping '" + line + "'")
+          None
+        }
+      }).toMap
+    } else Map.empty[String, String]
+
     // create producer threads
     val useNewProducer = options.has(useNewProducerOpt)
     val producerProps = Utils.loadProps(options.valueOf(producerConfigOpt))
@@ -140,7 +163,7 @@ object MirrorMaker extends Logging {
       }
       else
         new OldProducer(producerProps)
-      new ProducerThread(mirrorDataChannel, producer, i)
+      new ProducerThread(mirrorDataChannel, producer, topicMappings, i)
     })
 
     // create consumer threads
@@ -288,6 +311,7 @@ object MirrorMaker extends Logging {
 
   class ProducerThread (val dataChannel: DataChannel,
                         val producer: BaseProducer,
+                        val topicMappings: Map[String, String],
                         val threadId: Int) extends Thread with Logging with KafkaMetricsGroup {
     private val threadName = "mirrormaker-producer-" + threadId
     private val shutdownComplete: CountDownLatch = new CountDownLatch(1)
@@ -306,7 +330,10 @@ object MirrorMaker extends Logging {
             info("Received shutdown message")
             return
           }
-          producer.send(data.topic(), data.key(), data.value())
+          // rewrite topic between consuming side and producing side
+          val consumerTopic = data.topic()
+          val producerTopic = topicMappings.get(consumerTopic).getOrElse(consumerTopic)
+          producer.send(producerTopic, data.key(), data.value())
         }
       } catch {
         case t: Throwable => {
