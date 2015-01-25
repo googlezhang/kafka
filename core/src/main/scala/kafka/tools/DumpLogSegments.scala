@@ -31,6 +31,7 @@ object DumpLogSegments {
   def main(args: Array[String]) {
     val parser = new OptionParser
     val printOpt = parser.accepts("print-data-log", "if set, printing the messages content when dumping data logs")
+    val payloadOpt = parser.accepts("print-data-only", "if set, printing only the message payload when dumping data logs")
     val verifyOpt = parser.accepts("verify-index-only", "if set, just verify the index log without printing its content")
     val filesOpt = parser.accepts("files", "REQUIRED: The comma separated list of data and index log files to be dumped")
                            .withRequiredArg
@@ -59,6 +60,7 @@ object DumpLogSegments {
     CommandLineUtils.checkRequiredArgs(parser, options, filesOpt)
 
     val print = if(options.has(printOpt)) true else false
+    val payloadOnly = if(options.has(payloadOpt)) true else false
     val verifyOnly = if(options.has(verifyOpt)) true else false
     val files = options.valueOf(filesOpt).split(",")
     val maxMessageSize = options.valueOf(maxMessageSizeOpt).intValue()
@@ -73,10 +75,12 @@ object DumpLogSegments {
     for(arg <- files) {
       val file = new File(arg)
       if(file.getName.endsWith(Log.LogFileSuffix)) {
-        println("Dumping " + file)
-        dumpLog(file, print, nonConsecutivePairsForLogFilesMap, isDeepIteration, maxMessageSize , valueDecoder, keyDecoder)
+        if(!payloadOnly)
+          println("Dumping " + file)
+        dumpLog(file, print, payloadOnly, nonConsecutivePairsForLogFilesMap, isDeepIteration, maxMessageSize , valueDecoder, keyDecoder)
       } else if(file.getName.endsWith(Log.IndexFileSuffix)) {
-        println("Dumping " + file)
+        if(!payloadOnly)
+          println("Dumping " + file)
         dumpIndex(file, verifyOnly, misMatchesForIndexFilesMap, maxMessageSize)
       }
     }
@@ -127,13 +131,15 @@ object DumpLogSegments {
   /* print out the contents of the log */
   private def dumpLog(file: File,
                       printContents: Boolean,
+                      printPayloadOnly: Boolean,
                       nonConsecutivePairsForLogFilesMap: mutable.HashMap[String, List[(Long, Long)]],
                       isDeepIteration: Boolean,
                       maxMessageSize: Int,
                       valueDecoder: Decoder[_],
                       keyDecoder: Decoder[_]) {
     val startOffset = file.getName().split("\\.")(0).toLong
-    println("Starting offset: " + startOffset)
+    if(!printPayloadOnly)
+      println("Starting offset: " + startOffset)
     val messageSet = new FileMessageSet(file, false)
     var validBytes = 0L
     var lastOffset = -1l
@@ -153,16 +159,22 @@ object DumpLogSegments {
         }
         lastOffset = messageAndOffset.offset
 
-        print("offset: " + messageAndOffset.offset + " position: " + validBytes + " isvalid: " + msg.isValid +
-              " payloadsize: " + msg.payloadSize + " magic: " + msg.magic +
-              " compresscodec: " + msg.compressionCodec + " crc: " + msg.checksum)
+        if(!printPayloadOnly)
+          print("offset: " + messageAndOffset.offset + " position: " + validBytes + " isvalid: " + msg.isValid +
+                " payloadsize: " + msg.payloadSize + " magic: " + msg.magic +
+                " compresscodec: " + msg.compressionCodec + " crc: " + msg.checksum)
         if(msg.hasKey)
-          print(" keysize: " + msg.keySize)
-        if(printContents) {
+          if(!printPayloadOnly)
+            print(" keysize: " + msg.keySize)
+        if(printContents || printPayloadOnly) {
           if(msg.hasKey)
-            print(" key: " + keyDecoder.fromBytes(Utils.readBytes(messageAndOffset.message.key)))
+            if(!printPayloadOnly)
+              print(" key: " + keyDecoder.fromBytes(Utils.readBytes(messageAndOffset.message.key)))
           val payload = if(messageAndOffset.message.isNull) null else valueDecoder.fromBytes(Utils.readBytes(messageAndOffset.message.payload))
-          print(" payload: " + payload)
+          if(printPayloadOnly)
+            print(payload)
+          else
+            print(" payload: " + payload)
         }
         println()
       }
@@ -170,7 +182,8 @@ object DumpLogSegments {
     }
     val trailingBytes = messageSet.sizeInBytes - validBytes
     if(trailingBytes > 0)
-      println("Found %d invalid bytes at the end of %s".format(trailingBytes, file.getName))
+      if(!printPayloadOnly)
+        println("Found %d invalid bytes at the end of %s".format(trailingBytes, file.getName))
   }
 
   private def getIterator(messageAndOffset: MessageAndOffset, isDeepIteration: Boolean) = {
