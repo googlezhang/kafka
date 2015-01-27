@@ -505,7 +505,7 @@ private[kafka] class Processor(val id: Int,
 
 }
 
-class ConnectionQuotas(val defaultMax: Int, overrideQuotas: Map[String, Int]) extends Logging {
+class ConnectionQuotas(val defaultMax: Int, overrideQuotas: Map[String, Int]) {
   private val overrides = overrideQuotas.map(entry => (InetAddress.getByName(entry._1), entry._2))
   private val counts = mutable.Map[InetAddress, Int]()
   
@@ -514,7 +514,6 @@ class ConnectionQuotas(val defaultMax: Int, overrideQuotas: Map[String, Int]) ex
       val count = counts.getOrElse(addr, 0)
       counts.put(addr, count + 1)
       val max = overrides.getOrElse(addr, defaultMax)
-      debug("ConnectionQuotas: count[" + count + "] max[" + max + "] addr[" + addr + "]\n\tcounts: " + counts + "\n\toverrides: " + overrides)
       if(count >= max)
         throw new TooManyConnectionsException(addr, max)
     }
