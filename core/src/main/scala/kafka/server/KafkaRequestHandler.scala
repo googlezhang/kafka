@@ -17,6 +17,7 @@
 
 package kafka.server
 
+import kafka.common.TopicAndPartition
 import kafka.network._
 import kafka.utils._
 import kafka.metrics.KafkaMetricsGroup
@@ -93,10 +94,11 @@ class KafkaRequestHandlerPool(val brokerId: Int,
   }
 }
 
-class BrokerTopicMetrics(name: Option[String]) extends KafkaMetricsGroup {
-  val tags: scala.collection.Map[String, String] = name match {
+class BrokerTopicMetrics(topicAndPartition: Option[TopicAndPartition]) extends KafkaMetricsGroup {
+  val tags: scala.collection.Map[String, String] = topicAndPartition match {
     case None => scala.collection.Map.empty
-    case Some(topic) => Map("topic" -> topic)
+    case Some(TopicAndPartition(topic, partition)) =>
+      Map("topic" -> topic, "partition" -> partition.toString)
   }
 
   val messagesInRate = newMeter("MessagesInPerSec", "messages", TimeUnit.SECONDS, tags)
@@ -108,13 +110,13 @@ class BrokerTopicMetrics(name: Option[String]) extends KafkaMetricsGroup {
 }
 
 object BrokerTopicStats extends Logging {
-  private val valueFactory = (k: String) => new BrokerTopicMetrics(Some(k))
-  private val stats = new Pool[String, BrokerTopicMetrics](Some(valueFactory))
+  private val valueFactory = (k: TopicAndPartition) => new BrokerTopicMetrics(Some(k))
+  private val stats = new Pool[TopicAndPartition, BrokerTopicMetrics](Some(valueFactory))
   private val allTopicsStats = new BrokerTopicMetrics(None)
 
   def getBrokerAllTopicsStats(): BrokerTopicMetrics = allTopicsStats
 
-  def getBrokerTopicStats(topic: String): BrokerTopicMetrics = {
-    stats.getAndMaybePut(topic)
+  def getBrokerTopicStats(topicAndPartition: TopicAndPartition): BrokerTopicMetrics = {
+    stats.getAndMaybePut(topicAndPartition)
   }
 }

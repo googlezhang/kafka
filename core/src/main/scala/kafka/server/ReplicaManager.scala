@@ -248,7 +248,7 @@ class ReplicaManager(val config: KafkaConfig,
         val partitionDataAndOffsetInfo =
           try {
             val (fetchInfo, highWatermark) = readMessageSet(topic, partition, offset, fetchSize, fetchRequest.replicaId)
-            BrokerTopicStats.getBrokerTopicStats(topic).bytesOutRate.mark(fetchInfo.messageSet.sizeInBytes)
+            BrokerTopicStats.getBrokerTopicStats(TopicAndPartition(topic, partition)).bytesOutRate.mark(fetchInfo.messageSet.sizeInBytes)
             BrokerTopicStats.getBrokerAllTopicsStats.bytesOutRate.mark(fetchInfo.messageSet.sizeInBytes)
             if (isFetchFromFollower) {
               debug("Partition [%s,%d] received fetch request from follower %d"
@@ -268,7 +268,7 @@ class ReplicaManager(val config: KafkaConfig,
                 fetchRequest.correlationId, fetchRequest.clientId, topic, partition, nle.getMessage))
               new PartitionDataAndOffset(new FetchResponsePartitionData(ErrorMapping.codeFor(nle.getClass.asInstanceOf[Class[Throwable]]), -1L, MessageSet.Empty), LogOffsetMetadata.UnknownOffsetMetadata)
             case t: Throwable =>
-              BrokerTopicStats.getBrokerTopicStats(topic).failedFetchRequestRate.mark()
+              BrokerTopicStats.getBrokerTopicStats(TopicAndPartition(topic, partition)).failedFetchRequestRate.mark()
               BrokerTopicStats.getBrokerAllTopicsStats.failedFetchRequestRate.mark()
               error("Error when processing fetch request for partition [%s,%d] offset %d from %s with correlation id %d. Possible cause: %s"
                 .format(topic, partition, offset, if (isFetchFromFollower) "follower" else "consumer", fetchRequest.correlationId, t.getMessage))

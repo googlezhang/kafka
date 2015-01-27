@@ -296,9 +296,9 @@ class KafkaApis(val requestChannel: RequestChannel,
         val numAppendedMessages = if (info.firstOffset == -1L || info.lastOffset == -1L) 0 else (info.lastOffset - info.firstOffset + 1)
 
         // update stats for successfully appended bytes and messages as bytesInRate and messageInRate
-        BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesInRate.mark(messages.sizeInBytes)
+        BrokerTopicStats.getBrokerTopicStats(topicAndPartition).bytesInRate.mark(messages.sizeInBytes)
         BrokerTopicStats.getBrokerAllTopicsStats.bytesInRate.mark(messages.sizeInBytes)
-        BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).messagesInRate.mark(numAppendedMessages)
+        BrokerTopicStats.getBrokerTopicStats(topicAndPartition).messagesInRate.mark(numAppendedMessages)
         BrokerTopicStats.getBrokerAllTopicsStats.messagesInRate.mark(numAppendedMessages)
 
         trace("%d bytes written to log %s-%d beginning at offset %d and ending at offset %d"
@@ -329,7 +329,7 @@ class KafkaApis(val requestChannel: RequestChannel,
             producerRequest.correlationId, producerRequest.clientId, topicAndPartition, nere.getMessage))
           new ProduceResult(topicAndPartition, nere)
         case e: Throwable =>
-          BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).failedProduceRequestRate.mark()
+          BrokerTopicStats.getBrokerTopicStats(topicAndPartition).failedProduceRequestRate.mark()
           BrokerTopicStats.getBrokerAllTopicsStats.failedProduceRequestRate.mark()
           error("Error processing ProducerRequest with correlation id %d from client %s on partition %s"
             .format(producerRequest.correlationId, producerRequest.clientId, topicAndPartition), e)

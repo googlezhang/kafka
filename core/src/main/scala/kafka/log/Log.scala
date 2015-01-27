@@ -288,7 +288,7 @@ class Log(val dir: File,
           if(MessageSet.entrySize(messageAndOffset.message) > config.maxMessageSize) {
             // we record the original message set size instead of trimmed size
             // to be consistent with pre-compression bytesRejectedRate recording
-            BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesRejectedRate.mark(messages.sizeInBytes)
+            BrokerTopicStats.getBrokerTopicStats(topicAndPartition).bytesRejectedRate.mark(messages.sizeInBytes)
             BrokerTopicStats.getBrokerAllTopicsStats.bytesRejectedRate.mark(messages.sizeInBytes)
             throw new MessageSizeTooLargeException("Message size is %d bytes which exceeds the maximum configured message size of %d."
               .format(MessageSet.entrySize(messageAndOffset.message), config.maxMessageSize))
@@ -373,7 +373,7 @@ class Log(val dir: File,
       // Check if the message sizes are valid.
       val messageSize = MessageSet.entrySize(m)
       if(messageSize > config.maxMessageSize) {
-        BrokerTopicStats.getBrokerTopicStats(topicAndPartition.topic).bytesRejectedRate.mark(messages.sizeInBytes)
+        BrokerTopicStats.getBrokerTopicStats(topicAndPartition).bytesRejectedRate.mark(messages.sizeInBytes)
         BrokerTopicStats.getBrokerAllTopicsStats.bytesRejectedRate.mark(messages.sizeInBytes)
         throw new MessageSizeTooLargeException("Message size is %d bytes which exceeds the maximum configured message size of %d."
           .format(messageSize, config.maxMessageSize))
