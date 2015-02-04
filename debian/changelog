@@ -1,3 +1,9 @@
+kloak (0.8.2) unstable; urgency=low
+
+  * Rename to kloak
+
+ -- Norbert Hu <norbert@uber.com>  Wed, 04 Feb 2015 01:49:09 +0000
+
 kafka8 (0.8.2~uber1) unstable; urgency=low
 
   * Uber build
