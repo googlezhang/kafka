@@ -1,4 +1,4 @@
-Source: kafka
+Source: kafka-0.8.2
 Section: database
 Priority: extra
 Maintainer: Norbert Hu <norbert@uber.com>
@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 8.0.0), openjdk-7-jdk, curl
 Standards-Version: 3.9.3
 Homepage: http://kafka.apache.org/
 
-Package: kafka
+Package: kafka-0.8.2
 Architecture: all
 Depends: openjdk-7-jre-headless
 Description: Distributed, partitioned, replicated commit log service.
