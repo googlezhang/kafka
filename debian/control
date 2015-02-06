@@ -1,4 +1,4 @@
-Source: kloak
+Source: kafka
 Section: database
 Priority: extra
 Maintainer: Norbert Hu <norbert@uber.com>
@@ -6,7 +6,7 @@ Build-Depends: debhelper (>= 8.0.0), openjdk-7-jdk, curl
 Standards-Version: 3.9.3
 Homepage: http://kafka.apache.org/
 
-Package: kloak
+Package: kafka
 Architecture: all
 Depends: openjdk-7-jre-headless
 Description: Distributed, partitioned, replicated commit log service.
