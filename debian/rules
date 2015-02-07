@@ -12,7 +12,7 @@ override_dh_auto_build:
 # Do not install init script automatically
 override_dh_installinit:
 
-DESTDIR = debian/kafka
+DESTDIR = debian/kafka-0.8.2
 override_dh_auto_install:
 	install -m 755 -d $(DESTDIR)/etc/kafka
 	install -m 644 config/*.properties $(DESTDIR)/etc/kafka
