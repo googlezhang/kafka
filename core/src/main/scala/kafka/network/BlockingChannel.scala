@@ -72,7 +72,10 @@ class BlockingChannel( val host: String,
                          connectTimeoutMs))
 
       } catch {
-        case e: Throwable => disconnect()
+        case e: Throwable => {
+          error("Cannot create socket connection. " + e);
+          disconnect()
+        }
       }
     }
   }
