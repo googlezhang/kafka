@@ -83,21 +83,13 @@ class Log(val dir: File,
 
   newGauge("LogStartOffset",
     new Gauge[Long] {
-      def value = try {
-        logStartOffset
-      } catch {
-        case _ => 0
-      }
+      def value = logStartOffset
     },
     tags)
 
   newGauge("LogEndOffset",
     new Gauge[Long] {
-      def value = try {
-        logEndOffset
-      } catch {
-        case _ => 0
-      }
+      def value = logEndOffset
     },
     tags)
 
