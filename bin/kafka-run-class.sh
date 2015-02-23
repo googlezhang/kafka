@@ -76,6 +76,11 @@ do
   CLASSPATH=$CLASSPATH:$file
 done
 
+for file in $base_dir/graphite/build/libs/kafka-graphite_${SCALA_BINARY_VERSION}*.jar;
+do
+  CLASSPATH=$CLASSPATH:$file
+done
+
 # JMX settings
 if [ -z "$KAFKA_JMX_OPTS" ]; then
   KAFKA_JMX_OPTS="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false  -Dcom.sun.management.jmxremote.ssl=false "
