@@ -3,7 +3,7 @@ boxes = 'kloak{01,02,03,04,05,06,07,08}-sjc1'
 
 warn_thresholds = {
 
-   'num_messages': 200
+   #'num_messages': 200
 
 }
 
@@ -14,7 +14,7 @@ critical_thresholds = {
 
 checks = {
 
-   'num_messages': 'sumSeries(servers.' + boxes + '.kafka.server.BrokerTopicMetrics.MessagesInPerSec.*.*.count)'
+   #'num_messages': 'sumSeries(servers.' + boxes + '.kafka.server.BrokerTopicMetrics.MessagesInPerSec.*.*.count)'
 
 }
 
