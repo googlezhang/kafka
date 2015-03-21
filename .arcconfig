@@ -1,0 +1,6 @@
+{
+    "project_id": "kafka-master",
+    "conduit_uri": "https://code.uberinternal.com/",
+    "git.default-relative-commit": "origin/master",
+    "arc.land.onto.default": "master"
+}
