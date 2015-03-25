@@ -3,13 +3,12 @@
 
 package com.uber.kafka.tools;
 
-import java.util.Collections;
-import java.util.List;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.google.common.collect.Sets;
 import kafka.utils.ZkUtils;
 
 import org.I0Itec.zkclient.ZkClient;
@@ -19,7 +18,7 @@ import org.apache.log4j.Logger;
 import scala.collection.Iterator;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 /**
  * Utility methods for Kafka 0.7 to Kafak 0.8 migrator.
@@ -35,8 +34,16 @@ public class MigrationUtils {
 
     private static final MigrationUtils INSTANCE = new MigrationUtils();
 
+    private final String hostName;
+
     // For tests.
-    MigrationUtils() {}
+    MigrationUtils() {
+        try {
+            hostName = InetAddress.getLocalHost().getHostName();
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public static MigrationUtils get() {
         return INSTANCE;
@@ -64,7 +71,7 @@ public class MigrationUtils {
             if (matcher.find() ^ !isWhitelist) {
                 filteredTopics.add(topic);
             } else {
-                LOGGER.info("Skip migrating topic " + topic + " from Kafka 0.7 to 0.8");
+                LOGGER.info("Skip migrating topic " + topic);
             }
         }
         return OR_DELIMITER.join(filteredTopics);
@@ -82,6 +89,10 @@ public class MigrationUtils {
         } finally {
             zkClient.close();
         }
+    }
+
+    public String getHostName() {
+        return hostName;
     }
 
 }

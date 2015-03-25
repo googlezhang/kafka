@@ -11,6 +11,7 @@ import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -33,8 +34,10 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.spi.LoggingEvent;
 
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Joiner;
-
+import com.google.common.collect.Maps;
 
 /**
  * kafka 0.7 to 0.8 online migration tool based on kafka.tools.KafkaMigrationTool.
@@ -174,6 +177,41 @@ public class KafkaMigrationTool
             .ofType(Integer.class)
             .defaultsTo(10000);
 
+        ArgumentAcceptingOptionSpec<String> graphiteHostOpt
+            =  parser.accepts("graphite.host", "Graphite host for reporting metrics")
+            .withRequiredArg()
+            .describedAs("Graphite host, e.g. <host>:<port>")
+            .ofType(String.class)
+            .defaultsTo("localhost:4756");  // statsrelay
+
+        ArgumentAcceptingOptionSpec<Integer> graphiteReportPeriodSecOpt
+            =  parser.accepts("graphite.report.period.sec", "How often in seconds to report metrics to graphite; disabled if -1")
+            .withRequiredArg()
+            .describedAs("How often in seconds to report metrics to graphite; disabled if -1")
+            .ofType(Integer.class)
+            .defaultsTo(-1);
+
+        ArgumentAcceptingOptionSpec<Integer> consoleReportPeriodSecOpt
+            =  parser.accepts("console.report.period.sec", "How often in seconds to report metrics to console; disabled if -1")
+            .withRequiredArg()
+            .describedAs("How often in seconds to report metrics to console; disabled if -1")
+            .ofType(Integer.class)
+            .defaultsTo(-1);
+
+        ArgumentAcceptingOptionSpec<String> dataCenterPrefixOpt
+            =  parser.accepts("data.center.prefix", "Data center prefix used when logging to graphite")
+            .withRequiredArg()
+            .describedAs("Data center prefix used when logging to graphite")
+            .ofType(String.class)
+            .defaultsTo("");
+
+        ArgumentAcceptingOptionSpec<String> graphiteLogNamespaceOpt
+            =  parser.accepts("graphite.log.namespace", "Namespace used for graphite metric names")
+            .withRequiredArg()
+            .describedAs("Namespace used for graphite metric names")
+            .ofType(String.class)
+            .defaultsTo("");
+
         OptionSpecBuilder helpOpt
             = parser.accepts("help", "Print this message.");
 
@@ -202,6 +240,20 @@ public class KafkaMigrationTool
         String kafka08ZKHosts = options.valueOf(kafka08ZKHostsOpt);
         final List<MigrationThread> migrationThreads = new ArrayList<MigrationThread>(numConsumers);
         final List<ProducerThread> producerThreads = new ArrayList<ProducerThread>(numProducers);
+
+        String graphiteHost = options.valueOf(graphiteHostOpt);
+        int graphiteReportPeriodSec = options.valueOf(graphiteReportPeriodSecOpt);
+        int consoleReportPeriodSec = options.valueOf(consoleReportPeriodSecOpt);
+        String dataCenterPrefix = options.valueOf(dataCenterPrefixOpt);
+        String graphiteLogNamespace = options.valueOf(graphiteLogNamespaceOpt);
+
+        MigrationMetrics metrics = new MigrationMetrics.Builder()
+            .setConsoleReporter(consoleReportPeriodSec)
+            .setGraphiteReporter(graphiteHost, graphiteReportPeriodSec)
+            .setDataCenterPrefix(dataCenterPrefix)
+            .setGraphiteLogNamespace(graphiteLogNamespace)
+            .build();
+        context.setMetrics(metrics);
 
         try {
             File kafkaJar_07 = new File(kafkaJarFile_07);
@@ -282,6 +334,11 @@ public class KafkaMigrationTool
                     }
                     for(ProducerThread producerThread : producerThreads) {
                         producerThread.awaitShutdown();
+                    }
+                    try {
+                        context.getMetrics().close();
+                    } catch (Exception e) {
+                        logger.error("Error while shutting down metrics reporters", e);
                     }
                     if (context.failed()) {
                         Set<String> topics = context.getTopicsWithCorruptOffset();
@@ -371,16 +428,22 @@ public class KafkaMigrationTool
         private final MigrationContext context;
         private final int producerQueueSize;
         private final BlockingQueue<T> producerRequestQueue;
+        private final Histogram queueSizeHistogram;
 
         public ProducerDataChannel(MigrationContext context, int queueSize) {
             this.context = context;
             producerQueueSize = queueSize;
             producerRequestQueue = new ArrayBlockingQueue<T>(producerQueueSize);
+
+            MetricRegistry registry = context.getMetrics().getRegistry();
+            queueSizeHistogram = registry.histogram(MetricRegistry.name(
+                "data_channel_size", MigrationUtils.get().getHostName()));
         }
 
         public void sendRequest(T data) throws InterruptedException {
             while (!context.failed()) {
                 if (producerRequestQueue.offer(data, OFFER_INTERVAL_MS, TimeUnit.MILLISECONDS)) {
+                    queueSizeHistogram.update(size());
                     return;
                 }
             }
@@ -391,6 +454,7 @@ public class KafkaMigrationTool
             while (!context.failed()) {
                 T data = producerRequestQueue.poll(POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
                 if (data != null) {
+                    queueSizeHistogram.update(size());
                     return data;
                 }
             }
@@ -402,6 +466,17 @@ public class KafkaMigrationTool
         }
     }
 
+    private static String getMessagesMeterName(Map<String, String> meterNames, String type,
+                                               String topic) {
+        String meterName = meterNames.get(topic);
+        if (meterName == null) {
+            meterName = MetricRegistry.name(topic, type + "_messages",
+                MigrationUtils.get().getHostName());
+            meterNames.put(topic, meterName);
+        }
+        return meterName;
+    }
+
     private static class MigrationThread extends Thread {
         private final Object stream;
         private final ProducerDataChannel<KeyedMessage<byte[], byte[]>> producerDataChannel;
@@ -410,6 +485,8 @@ public class KafkaMigrationTool
         private final org.apache.log4j.Logger logger;
         private CountDownLatch shutdownComplete = new CountDownLatch(1);
         private final MigrationContext context;
+        private final Map<String, String> messagesMeterNames = Maps.newHashMap();
+        private final MetricRegistry registry;
 
         MigrationThread(MigrationContext context, Object _stream,
                         ProducerDataChannel<KeyedMessage<byte[], byte[]>> _producerDataChannel,
@@ -421,6 +498,7 @@ public class KafkaMigrationTool
             threadName = "MigrationThread-" + threadId;
             logger = org.apache.log4j.Logger.getLogger(MigrationThread.class.getName());
             this.setName(threadName);
+            registry = context.getMetrics().getRegistry();
         }
 
         public void run() {
@@ -448,6 +526,9 @@ public class KafkaMigrationTool
 
                     KeyedMessage<byte[], byte[]> producerData = new KeyedMessage((String)topic, null, bytes);
                     producerDataChannel.sendRequest(producerData);
+
+                    String meterName = getMessagesMeterName(messagesMeterNames, "migration", (String) topic);
+                    registry.meter(meterName).mark();
                 }
                 logger.info("Migration thread " + threadName + " finished running");
             } catch (InvocationTargetException t){
@@ -482,6 +563,8 @@ public class KafkaMigrationTool
         private org.apache.log4j.Logger logger;
         private CountDownLatch shutdownComplete = new CountDownLatch(1);
         private KeyedMessage<byte[], byte[]> shutdownMessage = new KeyedMessage("shutdown", null, null);
+        private final Map<String, String> messagesMeterNames = Maps.newHashMap();
+        private final MetricRegistry registry;
 
         public ProducerThread(MigrationContext context,
                               ProducerDataChannel<KeyedMessage<byte[], byte[]>> _producerDataChannel,
@@ -493,6 +576,7 @@ public class KafkaMigrationTool
             threadName = "ProducerThread-" + threadId;
             logger = org.apache.log4j.Logger.getLogger(ProducerThread.class.getName());
             this.setName(threadName);
+            registry = context.getMetrics().getRegistry();
         }
 
         public void run() {
@@ -504,6 +588,9 @@ public class KafkaMigrationTool
                         if(logger.isDebugEnabled()) {
                             logger.debug("Sending message " + new String(data.message()));
                         }
+                        String meterName = getMessagesMeterName(messagesMeterNames,
+                            "producer", data.topic());
+                        registry.meter(meterName).mark();
                     } else {
                         break;
                     }

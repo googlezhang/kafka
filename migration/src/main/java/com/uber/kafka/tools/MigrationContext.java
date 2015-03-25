@@ -19,6 +19,7 @@ public class MigrationContext {
 
     private final AtomicBoolean failed;
     private final Set<String> topicsWithCorruptOffset;
+    private MigrationMetrics metrics;
 
     public MigrationContext() {
         this.failed = new AtomicBoolean(false);
@@ -51,4 +52,13 @@ public class MigrationContext {
             topicsWithCorruptOffset.add(topic);
         }
     }
+
+    public synchronized MigrationMetrics getMetrics() {
+        return metrics;
+    }
+
+    public synchronized void setMetrics(MigrationMetrics metrics) {
+        this.metrics = metrics;
+    }
+
 }

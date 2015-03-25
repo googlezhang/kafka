@@ -1,7 +1,7 @@
-package com.uber.kafka.tools;
+// Copyright (c) 2015 Uber Technologies, Inc. All rights reserved.
+// @author Seung-Yeoul Yang (syyang@uber.com)
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+package com.uber.kafka.tools;
 
 import net.kencochrane.raven.Raven;
 import net.kencochrane.raven.event.Event;
@@ -23,22 +23,14 @@ public class MigrationSentryAppender extends SentryAppender {
     private final String hostName;
 
     public MigrationSentryAppender() {
-        try {
-            this.hostName = InetAddress.getLocalHost().getHostName();
-            setExtraTags(HOST_NAME);
-        } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
-        }
+        hostName = MigrationUtils.get().getHostName();
+        setExtraTags(HOST_NAME);
     }
 
     public MigrationSentryAppender(Raven raven) {
         this.raven = raven;
-        try {
-            this.hostName = InetAddress.getLocalHost().getHostName();
-            setExtraTags(HOST_NAME);
-        } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
-        }
+        hostName = MigrationUtils.get().getHostName();
+        setExtraTags(HOST_NAME);
     }
 
     @Override
