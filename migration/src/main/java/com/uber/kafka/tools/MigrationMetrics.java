@@ -6,10 +6,6 @@ package com.uber.kafka.tools;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Strings;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import org.apache.log4j.Logger;
 
 import com.codahale.metrics.ConsoleReporter;
@@ -17,6 +13,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
+import com.google.common.base.Strings;
 import com.google.common.net.HostAndPort;
 
 public class MigrationMetrics {

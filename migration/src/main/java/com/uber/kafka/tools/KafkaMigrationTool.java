@@ -470,7 +470,9 @@ public class KafkaMigrationTool
                                                String topic) {
         String meterName = meterNames.get(topic);
         if (meterName == null) {
-            meterName = MetricRegistry.name(topic, type + "_messages",
+            // Convert "." with "_" to avoid messing up graphite log path
+            String escapedTopic = topic.replace('.', '_');
+            meterName = MetricRegistry.name(escapedTopic, type + "_messages",
                 MigrationUtils.get().getHostName());
             meterNames.put(topic, meterName);
         }
