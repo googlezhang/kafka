@@ -9,16 +9,9 @@ warn_thresholds = {
 critical_thresholds = {
     'leaderelection_alert' : 0,
     'controller_count_bug' : 1,
-    #for now alerting if the moving average in 15 mins is > 0.0011. If we have more than 1 under replicated partition in 15 mins we alert.
+    #If we have more than 3 (averaged out across the cluster) under replicated partition in 1 minute for continuous 15 minutes we alert.
     #this is subjected to change after we monitor for sometime.
-    'under_replication_kloak01' : 0.0011,
-    'under_replication_kloak02' : 0.0011,
-    'under_replication_kloak03' : 0.0011,
-    'under_replication_kloak04' : 0.0011,
-    'under_replication_kloak05' : 0.0011,
-    'under_replication_kloak06' : 0.0011,
-    'under_replication_kloak07' : 0.0011,
-    'under_replication_kloak08' : 0.0011,
+    'cluster_under_replication' : 0.05,
 
     'absolute_cluster_wait_time' : 70,
 }
@@ -28,17 +21,10 @@ checks = {
    'controller_count_bug': 'sumSeries(servers.' + boxes + '.kafka.controller.KafkaController.ActiveControllerCount.value)',
    'leaderelection_alert' : 'sumSeries(servers.' + boxes + '.kafka.controller.ControllerStats.LeaderElectionRateAndTimeMs.1MinuteRate)',
 
-   #under replication thresholds
-   'under_replication_kloak01' : 'movingAverage(servers.kloak01-sjc1.kafka.server.ReplicaManager.UnderReplicatedPartitions.value,"15min")',
-   'under_replication_kloak02' : 'movingAverage(servers.kloak02-sjc1.kafka.server.ReplicaManager.UnderReplicatedPartitions.value,"15min")',
-   'under_replication_kloak03' : 'movingAverage(servers.kloak03-sjc1.kafka.server.ReplicaManager.UnderReplicatedPartitions.value,"15min")',
-   'under_replication_kloak04' : 'movingAverage(servers.kloak04-sjc1.kafka.server.ReplicaManager.UnderReplicatedPartitions.value,"15min")',
-   'under_replication_kloak05' : 'movingAverage(servers.kloak05-sjc1.kafka.server.ReplicaManager.UnderReplicatedPartitions.value,"15min")',
-   'under_replication_kloak06' : 'movingAverage(servers.kloak06-sjc1.kafka.server.ReplicaManager.UnderReplicatedPartitions.value,"15min")',
-   'under_replication_kloak07' : 'movingAverage(servers.kloak07-sjc1.kafka.server.ReplicaManager.UnderReplicatedPartitions.value,"15min")',
-   'under_replication_kloak08' : 'movingAverage(servers.kloak08-sjc1.kafka.server.ReplicaManager.UnderReplicatedPartitions.value,"15min")',
+    #cluster wide under replication 
+   'cluster_under_replication' : 'movingAverage(averageSeries(servers.' + boxes + '.kafka.server.ReplicaManager.UnderReplicatedPartitions.value),"15min")',
 
-   #absolute IO wait time for the cluster
+    #absolute IO wait time for the cluster
    'absolute_cluster_wait_time' : 'movingAverage(averageSeries(servers.' + boxes + '.disk.sda.await),"30min")',
 
 
