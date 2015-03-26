@@ -20,7 +20,7 @@ import com.google.common.collect.ImmutableList;
 public class MigrationUtilsTest {
 
     private static final String TEST_ZK_HOSTS = "localhost:2182";
-    private static final Set<String> KAFAK08_TOPICS = ImmutableSet.of("a", "b", "c");
+    private static final Set<String> KAFAK08_TOPICS = ImmutableSet.of("a", "b", "c", "foo_bar");
 
     private MigrationUtils utils;
 
@@ -40,8 +40,13 @@ public class MigrationUtilsTest {
     }
 
     @Test
+    public void testRewriteWhitelistWithDot() {
+        assertEquals("a", utils.rewriteTopicWhitelist(TEST_ZK_HOSTS, "d|a|foo.bar"));
+    }
+
+    @Test
     public void testRewriteBlacklist() {
-        assertEquals("b|c", utils.rewriteTopicBlacklist(TEST_ZK_HOSTS, "a|d"));
+        assertEquals("b|c|foo_bar", utils.rewriteTopicBlacklist(TEST_ZK_HOSTS, "a|d"));
     }
 
 }

@@ -6,8 +6,6 @@ package com.uber.kafka.tools;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import kafka.utils.ZkUtils;
 
@@ -63,12 +61,11 @@ public class MigrationUtils {
     }
 
     private String getTopicList(String kafka08ZKHosts, String topicList, boolean isWhitelist) {
-        Pattern pattern = Pattern.compile(topicList);
+        Set<String> topics = Sets.newHashSet(topicList.split("\\|"));
         Set<String> topicsInKafka08 = getAllTopicsInKafka08(kafka08ZKHosts);
         Set<String> filteredTopics = Sets.newTreeSet();
         for (String topic : topicsInKafka08) {
-            Matcher matcher = pattern.matcher(topic);
-            if (matcher.find() ^ !isWhitelist) {
+            if (topics.contains(topic) ^ !isWhitelist) {
                 filteredTopics.add(topic);
             } else {
                 LOGGER.info("Skip migrating topic " + topic);

@@ -33,8 +33,8 @@ public class Kafka7OffsetFixer {
     private final ZkClient zkClient;
     private final String mirrorMakerPath;
 
-    public Kafka7OffsetFixer(Kafka7LatestOffsets latestOffsetProvider) {
-        this(latestOffsetProvider, MIRRORMAKER_PATH);
+    public Kafka7OffsetFixer(Kafka7LatestOffsets latestOffsets) {
+        this(latestOffsets, MIRRORMAKER_PATH);
     }
 
     public Kafka7OffsetFixer(Kafka7LatestOffsets latestOffsets, String mirrorMakerPath) {

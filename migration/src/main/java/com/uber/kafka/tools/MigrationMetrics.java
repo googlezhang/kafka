@@ -13,6 +13,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
+import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.net.HostAndPort;
 
@@ -66,6 +67,8 @@ public class MigrationMetrics {
         }
     }
 
+    private static final Joiner STATS_DELIMITER = Joiner.on('.');
+
     private final MetricRegistry registry;
     private final GraphiteReporter graphiteReporter;
     private final ConsoleReporter consoleReporter;
@@ -108,6 +111,11 @@ public class MigrationMetrics {
         } else {
             consoleReporter = null;
         }
+    }
+
+    public static String name(String name, String... names) {
+        return STATS_DELIMITER.join(MetricRegistry.name(name, names),
+            MigrationUtils.get().getHostName());
     }
 
     public MetricRegistry getRegistry() {

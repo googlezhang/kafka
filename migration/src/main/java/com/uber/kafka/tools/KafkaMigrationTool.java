@@ -35,7 +35,9 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.spi.LoggingEvent;
 
 import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 
@@ -110,8 +112,9 @@ public class KafkaMigrationTool
 
     public static void main(String[] args) throws InterruptedException, IOException {
         final MigrationContext context = new MigrationContext();
-        InvalidMessageAppender foo = new InvalidMessageAppender(context);
-        Logger.getRootLogger().addAppender(foo);
+
+        InvalidMessageAppender invalidMessageAppender = new InvalidMessageAppender(context);
+        Logger.getRootLogger().addAppender(invalidMessageAppender);
 
         OptionParser parser = new OptionParser();
         ArgumentAcceptingOptionSpec<String> consumerConfigOpt
@@ -323,16 +326,16 @@ public class KafkaMigrationTool
                     logger.info("Shutting down migration tool...");
                     try {
                         ConsumerConnectorShutdownMethod_07.invoke(consumerConnector_07);
-                    } catch(Exception e) {
+                    } catch (Exception e) {
                         logger.error("Error while shutting down Kafka consumer", e);
                     }
-                    for(MigrationThread migrationThread : migrationThreads) {
+                    for (MigrationThread migrationThread : migrationThreads) {
                         migrationThread.shutdown();
                     }
-                    for(ProducerThread producerThread : producerThreads) {
+                    for (ProducerThread producerThread : producerThreads) {
                         producerThread.shutdown();
                     }
-                    for(ProducerThread producerThread : producerThreads) {
+                    for (ProducerThread producerThread : producerThreads) {
                         producerThread.awaitShutdown();
                     }
                     try {
@@ -346,7 +349,7 @@ public class KafkaMigrationTool
                             String consumerGroup = kafkaConsumerProperties_07.getProperty(
                                 KAFKA_07_CONSUMER_GROUP_PROPERTY);
                             logger.info("Fixing corrupt offsets for the following topics: " +
-                                Joiner.on(", ").join(topics));
+                                    Joiner.on(", ").join(topics));
 
                             Kafka7OffsetFixer fixer = null;
                             try {
@@ -436,8 +439,7 @@ public class KafkaMigrationTool
             producerRequestQueue = new ArrayBlockingQueue<T>(producerQueueSize);
 
             MetricRegistry registry = context.getMetrics().getRegistry();
-            queueSizeHistogram = registry.histogram(MetricRegistry.name(
-                "data_channel_size", MigrationUtils.get().getHostName()));
+            queueSizeHistogram = registry.histogram(MigrationMetrics.name("data_channel_size"));
         }
 
         public void sendRequest(T data) throws InterruptedException {
@@ -472,8 +474,7 @@ public class KafkaMigrationTool
         if (meterName == null) {
             // Convert "." with "_" to avoid messing up graphite log path
             String escapedTopic = topic.replace('.', '_');
-            meterName = MetricRegistry.name(escapedTopic, type + "_messages",
-                MigrationUtils.get().getHostName());
+            meterName = MigrationMetrics.name(escapedTopic, type + "_messages");
             meterNames.put(topic, meterName);
         }
         return meterName;
@@ -489,6 +490,8 @@ public class KafkaMigrationTool
         private final MigrationContext context;
         private final Map<String, String> messagesMeterNames = Maps.newHashMap();
         private final MetricRegistry registry;
+        private final Timer enqueueTimer;
+        private final Meter migrationThreadsThroughput;
 
         MigrationThread(MigrationContext context, Object _stream,
                         ProducerDataChannel<KeyedMessage<byte[], byte[]>> _producerDataChannel,
@@ -501,6 +504,9 @@ public class KafkaMigrationTool
             logger = org.apache.log4j.Logger.getLogger(MigrationThread.class.getName());
             this.setName(threadName);
             registry = context.getMetrics().getRegistry();
+            enqueueTimer = registry.timer(MigrationMetrics.name("data_channel_enqueue_time"));
+            migrationThreadsThroughput = registry.meter(
+                MigrationMetrics.name("migration_threads_throughput"));
         }
 
         public void run() {
@@ -525,12 +531,16 @@ public class KafkaMigrationTool
                         logger.debug("Migration thread " + threadId + " sending message of size " +
                             bytes.length + " to topic " + topic);
                     }
-
                     KeyedMessage<byte[], byte[]> producerData = new KeyedMessage((String)topic, null, bytes);
-                    producerDataChannel.sendRequest(producerData);
-
+                    final Timer.Context enqueueCtx = enqueueTimer.time();
+                    try {
+                        producerDataChannel.sendRequest(producerData);
+                    } finally {
+                        enqueueCtx.stop();
+                    }
                     String meterName = getMessagesMeterName(messagesMeterNames, "migration", (String) topic);
                     registry.meter(meterName).mark();
+                    migrationThreadsThroughput.mark();
                 }
                 logger.info("Migration thread " + threadName + " finished running");
             } catch (InvocationTargetException t){
@@ -567,6 +577,9 @@ public class KafkaMigrationTool
         private KeyedMessage<byte[], byte[]> shutdownMessage = new KeyedMessage("shutdown", null, null);
         private final Map<String, String> messagesMeterNames = Maps.newHashMap();
         private final MetricRegistry registry;
+        private final Timer dequeueTimer;
+        private final Timer producerSendTimer;
+        private final Meter producerThreadsThroughput;
 
         public ProducerThread(MigrationContext context,
                               ProducerDataChannel<KeyedMessage<byte[], byte[]>> _producerDataChannel,
@@ -579,14 +592,29 @@ public class KafkaMigrationTool
             logger = org.apache.log4j.Logger.getLogger(ProducerThread.class.getName());
             this.setName(threadName);
             registry = context.getMetrics().getRegistry();
+            dequeueTimer = registry.timer(MigrationMetrics.name("data_channel_dequeue_time"));
+            producerSendTimer = registry.timer(MigrationMetrics.name("producer_send_time"));
+            producerThreadsThroughput = registry.meter(
+                MigrationMetrics.name("producer_threads_throughput"));
         }
 
         public void run() {
             try{
                 while(!context.failed()) {
-                    KeyedMessage<byte[], byte[]> data = producerDataChannel.receiveRequest();
+                    KeyedMessage<byte[], byte[]> data = null;
+                    final Timer.Context dequeueCtx = dequeueTimer.time();
+                    try {
+                         data = producerDataChannel.receiveRequest();
+                    } finally {
+                        dequeueCtx.close();
+                    }
                     if(!data.equals(shutdownMessage)) {
-                        producer.send(data);
+                        final Timer.Context producerSendCtx = producerSendTimer.time();
+                        try {
+                            producer.send(data);
+                        } finally {
+                            producerSendCtx.close();
+                        }
                         if(logger.isDebugEnabled()) {
                             logger.debug("Sending message " + new String(data.message()));
                         }
@@ -596,6 +624,7 @@ public class KafkaMigrationTool
                     } else {
                         break;
                     }
+                    producerThreadsThroughput.mark();
                 }
                 logger.info("Producer thread " + threadName + " finished running");
             } catch (Throwable t){
