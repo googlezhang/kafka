@@ -43,6 +43,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime) extends Logg
   private var isShuttingDown = new AtomicBoolean(false)
   private var shutdownLatch = new CountDownLatch(1)
   private var startupComplete = new AtomicBoolean(false)
+  val shutdownSuccess = new AtomicBoolean(false)
   val brokerState: BrokerState = new BrokerState
   val correlationId: AtomicInteger = new AtomicInteger(0)
   var socketServer: SocketServer = null
@@ -181,10 +182,10 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime) extends Logg
       info("Starting controlled shutdown")
       var channel : BlockingChannel = null
       var prevController : Broker = null
-      var shutdownSuceeded : Boolean = false
+      shutdownSuccess.set(false)
       try {
         brokerState.newState(PendingControlledShutdown)
-        while (!shutdownSuceeded && remainingRetries > 0) {
+        while (!shutdownSuccess.get() && remainingRetries > 0) {
           remainingRetries = remainingRetries - 1
 
           // 1. Find the controller and establish a connection to it.
@@ -223,7 +224,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime) extends Logg
               val shutdownResponse = ControlledShutdownResponse.readFrom(response.buffer)
               if (shutdownResponse.errorCode == ErrorMapping.NoError && shutdownResponse.partitionsRemaining != null &&
                   shutdownResponse.partitionsRemaining.size == 0) {
-                shutdownSuceeded = true
+                shutdownSuccess.set(true)
                 info ("Controlled shutdown succeeded")
               }
               else {
@@ -239,7 +240,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime) extends Logg
                 // ignore and try again
             }
           }
-          if (!shutdownSuceeded) {
+          if (!shutdownSuccess.get()) {
             Thread.sleep(config.controlledShutdownRetryBackoffMs)
             warn("Retrying controlled shutdown after the previous attempt failed...")
           }
@@ -251,7 +252,7 @@ class KafkaServer(val config: KafkaConfig, time: Time = SystemTime) extends Logg
           channel = null
         }
       }
-      if (!shutdownSuceeded) {
+      if (!shutdownSuccess.get()) {
         warn("Proceeding to do an unclean shutdown as all the controlled shutdown attempts failed")
       }
     }

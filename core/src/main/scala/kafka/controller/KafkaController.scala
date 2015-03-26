@@ -246,6 +246,18 @@ class KafkaController(val config : KafkaConfig, zkClient: ZkClient, val brokerSt
             .map(topicAndPartition => (topicAndPartition, controllerContext.partitionReplicaAssignment(topicAndPartition).size))
         }
 
+      val underReplicatedPartitions = allPartitionsAndReplicationFactorOnBroker.filter {
+        case(topicAndPartition, replicationFactor) =>
+          inLock(controllerContext.controllerLock) {
+            val replicaCount = controllerContext.partitionReplicaAssignment(topicAndPartition).size
+            val isrCount = controllerContext.partitionLeadershipInfo(topicAndPartition).leaderAndIsr.isr.size
+            // Allow at most some number of replicas for each topic to be shutdown in parallel
+            ((replicaCount > 1) && ((replicaCount - isrCount) >= config.controlledShutdownMaxUnderReplication))
+          }
+      }
+      if (underReplicatedPartitions.nonEmpty)
+        throw new NotEnoughReplicasException("The following topic partitions are under replicated: " + underReplicatedPartitions)
+
       allPartitionsAndReplicationFactorOnBroker.foreach {
         case(topicAndPartition, replicationFactor) =>
           // Move leadership serially to relinquish lock.

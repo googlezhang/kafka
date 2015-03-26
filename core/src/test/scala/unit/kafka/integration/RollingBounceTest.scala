@@ -40,6 +40,10 @@ class RollingBounceTest extends JUnit3Suite with ZooKeeperTestHarness {
   val configProps2 = TestUtils.createBrokerConfig(brokerId2, port2)
   val configProps3 = TestUtils.createBrokerConfig(brokerId3, port3)
   val configProps4 = TestUtils.createBrokerConfig(brokerId4, port4)
+  configProps1.put("controlled.shutdown.max.under.replication", "1")
+  configProps2.put("controlled.shutdown.max.under.replication", "1")
+  configProps3.put("controlled.shutdown.max.under.replication", "1")
+  configProps4.put("controlled.shutdown.max.under.replication", "1")
   configProps4.put("controlled.shutdown.retry.backoff.ms", "100")
 
   var servers: Seq[KafkaServer] = Seq.empty[KafkaServer]
@@ -106,5 +110,22 @@ class RollingBounceTest extends JUnit3Suite with ZooKeeperTestHarness {
     assertTrue("Leader transition did not happen for " + topic, newleader.getOrElse(-1) != -1 && (newleader.getOrElse(-1) != prevLeader))
     // Start the server back up again
     servers(prevLeader).startup()
+  }
+
+  def testParallelBounce {
+    // start all the brokers
+    val topic = "new-topic"
+
+    // create one topic with 4 partition, 3 replicas
+    createTopic(zkClient, topic, partitionReplicaAssignment =
+      Map(0->Seq(0,1,2),1->Seq(1,2,3),2->Seq(2,3,0),3->Seq(3,0,1)), servers = servers)
+
+    servers(0).shutdown()
+    assertTrue(servers(0).shutdownSuccess.get())
+
+    // Broker server1 should fail to shutdown cleanly because server0 is still
+    // not in running state.
+    servers(1).shutdown()
+    assertFalse(servers(1).shutdownSuccess.get())
   }
 }

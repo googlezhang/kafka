@@ -295,6 +295,10 @@ class KafkaConfig private (val props: VerifiableProperties) extends ZKConfig(pro
   /* enable controlled shutdown of the server */
   val controlledShutdownEnable = props.getBoolean("controlled.shutdown.enable", default = true)
 
+  /** The maximum topic under replication allowed to proceed with controlled shutdown. */
+  val controlledShutdownMaxUnderReplication = props.getIntInRange("controlled.shutdown.max.under.replication",
+                                                                  Int.MaxValue, (1, Int.MaxValue))
+
   /*********** Offset management configuration ***********/
 
   /* the maximum size for a metadata entry associated with an offset commit */
