@@ -52,7 +52,9 @@ public class OffsetLagMonitorTest {
         String basePath = String.format("/consumers/%s/offsets", TEST_CONSUMER_GROUP);
         String currentOffsetPath = String.format("%s/%s/0-0", basePath, TEST_TOPIC);
         List<String> children = Collections.singletonList(TEST_TOPIC);
+        when(zkClient.exists(basePath)).thenReturn(true);
         when(zkClient.getChildren(basePath)).thenReturn(children);
+        when(zkClient.exists(currentOffsetPath)).thenReturn(true);
         when(zkClient.readData(currentOffsetPath)).thenReturn(
             Long.toString(currentOffset).getBytes());
 
