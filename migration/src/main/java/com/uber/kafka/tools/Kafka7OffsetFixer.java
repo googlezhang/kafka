@@ -22,36 +22,35 @@ public class Kafka7OffsetFixer {
 
     private static final long OFFSET_INDEX_MAX_AGE_MS = TimeUnit.MINUTES.toMillis(10L);
 
-    private static final int PARTITION_0 = 0;
-
     private static final String LEAF_KAFKA07_ZK_HOST = "localhost:2182";
 
     private static final String MIRRORMAKER_PATH = "/var/mirrormaker";
     private static final String CURRENT_OFFSET_PATH = "/consumers/%s/offsets/%s/0-0";
 
-    private final Kafka7LatestOffsets latestOffsets;
+    private final Kafka7LatestOffsetReader offsetReader;
     private final ZkClient zkClient;
     private final String mirrorMakerPath;
 
-    public Kafka7OffsetFixer(Kafka7LatestOffsets latestOffsets) {
-        this(latestOffsets, MIRRORMAKER_PATH);
+    public Kafka7OffsetFixer(Kafka7LatestOffsetReader offsetReader) {
+        this(offsetReader, MIRRORMAKER_PATH);
     }
 
-    public Kafka7OffsetFixer(Kafka7LatestOffsets latestOffsets, String mirrorMakerPath) {
-        this(latestOffsets, mirrorMakerPath,
+    public Kafka7OffsetFixer(Kafka7LatestOffsetReader offsetReader, String mirrorMakerPath) {
+        this(offsetReader, mirrorMakerPath,
             MigrationUtils.get().newZkClient(LEAF_KAFKA07_ZK_HOST));
     }
 
-    public Kafka7OffsetFixer(Kafka7LatestOffsets latestOffsets,
+    public Kafka7OffsetFixer(Kafka7LatestOffsetReader offsetReader,
                              String mirrorMakerPath, ZkClient zkClient) {
-        this.latestOffsets = latestOffsets;
+        Preconditions.checkArgument(offsetReader.opened(), "Latest offset reader is closed");
+        this.offsetReader = offsetReader;
         this.mirrorMakerPath = mirrorMakerPath;
         this.zkClient = zkClient;
     }
 
     public void close() {
         try {
-            latestOffsets.close();
+            offsetReader.close();
             zkClient.close();
         } catch (Exception e) {
             LOGGER.warn("Failed to clean-up Kafka offset fixer", e);
@@ -95,7 +94,7 @@ public class Kafka7OffsetFixer {
         long newOffset = index.getNextOffset(currentOffset);
         if (newOffset == OffsetIndex.LATEST_OFFSET) {
             // Resolve latest offset to actual offset.
-            newOffset = latestOffsets.get(topic, PARTITION_0);
+            newOffset = offsetReader.getLatestOffset(topic);
             LOGGER.info("Resolved latest offset to " + newOffset + ", topic " + topic);
         }
 

@@ -113,9 +113,18 @@ public class MigrationMetrics {
         }
     }
 
+    private static String getEscapedTopicName(String topic) {
+        // Convert "." with "_" to avoid messing up graphite log path
+        return topic.replace('.', '_');
+    }
+
     public static String name(String name, String... names) {
         return STATS_DELIMITER.join(MetricRegistry.name(name, names),
             MigrationUtils.get().getHostName());
+    }
+
+    public static String nameWithTopic(String topic, String... names) {
+        return name(getEscapedTopicName(topic), names);
     }
 
     public MetricRegistry getRegistry() {

@@ -3,12 +3,18 @@
 
 package com.uber.kafka.tools;
 
-public interface Kafka7LatestOffsets {
+public interface Kafka7LatestOffsetReader {
 
     /**
      * Returns the latest offset for a given Kafka 0.7 topic and partition.
      */
-    long get(String topic, int partition);
+    long getLatestOffset(String topic);
+
+    boolean opened();
+
+    void open();
+
+    void reset();
 
     void close();
 }

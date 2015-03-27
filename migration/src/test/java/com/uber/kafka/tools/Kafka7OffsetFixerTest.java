@@ -29,7 +29,7 @@ public class Kafka7OffsetFixerTest {
     private static final String TEST_CONSUMER_GROUP = "test_fixer_consumer";
     private static final String TEST_TOPIC = "test_fixer_topic";
 
-    private Kafka7LatestOffsets latestOffsets;
+    private Kafka7LatestOffsetReader offsetReader;
     private ZkClient zkClient;
     private File mirrorkMakerDir;
     private String mirrorMakerPath;
@@ -39,7 +39,9 @@ public class Kafka7OffsetFixerTest {
 
     @Before
     public void setUp() throws Exception {
-        latestOffsets = mock(Kafka7LatestOffsets.class);
+        offsetReader = mock(Kafka7LatestOffsetReader.class);
+        when(offsetReader.opened()).thenReturn(true);
+
         zkClient = mock(ZkClient.class);
         mirrorkMakerDir = Files.createTempDir();
         mirrorMakerPath = mirrorkMakerDir.getPath();
@@ -76,7 +78,7 @@ public class Kafka7OffsetFixerTest {
 
         // Run fixer
         Kafka7OffsetFixer fixer = new Kafka7OffsetFixer(
-            latestOffsets, mirrorMakerPath, zkClient);
+            offsetReader, mirrorMakerPath, zkClient);
         fixer.fixOffset(TEST_CONSUMER_GROUP, TEST_TOPIC);
 
         // Verify that the new offset should be 30 since it's the next
@@ -96,11 +98,11 @@ public class Kafka7OffsetFixerTest {
         when(zkClient.readData(currentOffsetZkPath)).thenReturn(currentOffsetBytes);
 
         // Mock Kafka7LatestOffsets
-        when(latestOffsets.get(TEST_TOPIC, 0)).thenReturn(LATEST_OFFSET);
+        when(offsetReader.getLatestOffset(TEST_TOPIC)).thenReturn(LATEST_OFFSET);
 
         // Run fixer
         Kafka7OffsetFixer fixer = new Kafka7OffsetFixer(
-            latestOffsets, mirrorMakerPath, zkClient);
+            offsetReader, mirrorMakerPath, zkClient);
         fixer.fixOffset(TEST_CONSUMER_GROUP, TEST_TOPIC);
 
         // Verify that the new offset is latest offset since the current

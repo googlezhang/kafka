@@ -215,6 +215,14 @@ public class KafkaMigrationTool
             .ofType(String.class)
             .defaultsTo("");
 
+        ArgumentAcceptingOptionSpec<Integer> offsetLagMonitorPeriodSecOpt
+            =  parser.accepts("offset.lag.monitor.period.sec",
+                "How often in seconds to monitor Kafka 0.7 consumer offset lags; disabled if -1")
+            .withRequiredArg()
+            .describedAs("How often in seconds to monitor Kafka 0.7 consumer offset lags; disabled if -1")
+            .ofType(Integer.class)
+            .defaultsTo(-1);
+
         OptionSpecBuilder helpOpt
             = parser.accepts("help", "Print this message.");
 
@@ -320,6 +328,13 @@ public class KafkaMigrationTool
             ProducerDataChannel<KeyedMessage<byte[], byte[]>> producerDataChannel = new ProducerDataChannel<KeyedMessage<byte[], byte[]>>(context, queueSize);
             int threadId = 0;
 
+            int offsetLagMonitorPeriodSec = options.valueOf(offsetLagMonitorPeriodSecOpt);
+            final String consumerGroup = kafkaConsumerProperties_07.getProperty(
+                KAFKA_07_CONSUMER_GROUP_PROPERTY);
+            final OffsetLagMonitor offsetLagMonitor = new OffsetLagMonitor(
+                context, consumerGroup, new Kafka7LatestOffsetReaderImpl(c1),
+                offsetLagMonitorPeriodSec);
+
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 @Override
                 public void run() {
@@ -343,23 +358,30 @@ public class KafkaMigrationTool
                     } catch (Exception e) {
                         logger.error("Error while shutting down metrics reporters", e);
                     }
+                    try {
+                        offsetLagMonitor.shutdown();
+                    } catch (Exception e) {
+                        logger.error("Error while shutting down offset lag monitor", e);
+                    }
                     if (context.failed()) {
                         Set<String> topics = context.getTopicsWithCorruptOffset();
                         if (!topics.isEmpty()) {
-                            String consumerGroup = kafkaConsumerProperties_07.getProperty(
-                                KAFKA_07_CONSUMER_GROUP_PROPERTY);
                             logger.info("Fixing corrupt offsets for the following topics: " +
                                     Joiner.on(", ").join(topics));
-
                             Kafka7OffsetFixer fixer = null;
                             try {
-                                Kafka7LatestOffsets latestOffsets = new Kafka7LatestOffsetsImpl(c1);
-                                fixer = new Kafka7OffsetFixer(latestOffsets);
+                                fixer = new Kafka7OffsetFixer(
+                                    new Kafka7LatestOffsetReaderImpl(c1, true));
                                 for (String topic : topics) {
-                                    fixer.fixOffset(consumerGroup, topic);
+                                    try {
+                                        fixer.fixOffset(consumerGroup, topic);
+                                    } catch (Exception e) {
+                                        logger.error("Unexpected failure when fixing corrupt " +
+                                            "offset for " + topic, e);
+                                    }
                                 }
-                            } catch (Throwable t) {
-                                logger.error("Unexpected failure when fixing corrupt offset", t);
+                            } catch (Exception e) {
+                                logger.error("Unexpected failure when creating corrupt offset fixer", e);
                             } finally {
                                 try {
                                     if (fixer != null) {
@@ -397,6 +419,9 @@ public class KafkaMigrationTool
                 producerThread.start();
                 producerThreads.add(producerThread);
             }
+
+            logger.info("Starting offset lag monitor");
+            offsetLagMonitor.start();
 
             // Block while the migration tool is running. We need to call
             // System.exit(0) below to force trigger the shutdown hook to be
@@ -472,9 +497,7 @@ public class KafkaMigrationTool
                                                String topic) {
         String meterName = meterNames.get(topic);
         if (meterName == null) {
-            // Convert "." with "_" to avoid messing up graphite log path
-            String escapedTopic = topic.replace('.', '_');
-            meterName = MigrationMetrics.name(escapedTopic, type + "_messages");
+            meterName = MigrationMetrics.nameWithTopic(topic, type + "_messages");
             meterNames.put(topic, meterName);
         }
         return meterName;
