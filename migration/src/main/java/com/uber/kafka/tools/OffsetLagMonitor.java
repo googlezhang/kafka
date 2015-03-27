@@ -80,10 +80,18 @@ public class OffsetLagMonitor {
             try {
                 zkClient = getZkClient();
                 String basePath = String.format("/consumers/%s/offsets", consumerGroup);
+                if (!zkClient.exists(basePath)) {
+                    LOGGER.warn("Couldn't find consumer offsets dir: " + basePath);
+                    return;
+                }
                 List<String> topics = zkClient.getChildren(basePath);
                 currentOffsets = Maps.newHashMapWithExpectedSize(topics.size());
                 for (String topic : topics) {
                     String currentOffsetPath = String.format("%s/%s/0-0", basePath, topic);
+                    if (!zkClient.exists(currentOffsetPath)) {
+                        LOGGER.warn("Couldn't find consumer offset file: " + currentOffsetPath);
+                        continue;
+                    }
                     byte[] currentOffsetBytes = zkClient.readData(currentOffsetPath);
                     long currentOffset = Long.parseLong(new String(currentOffsetBytes));
                     currentOffsets.put(topic, currentOffset);
