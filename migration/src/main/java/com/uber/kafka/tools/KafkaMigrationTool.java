@@ -49,6 +49,8 @@ public class KafkaMigrationTool
 {
     private static final org.apache.log4j.Logger logger = org.apache.log4j.Logger.getLogger(KafkaMigrationTool.class.getName());
     private static final String KAFKA_07_STATIC_CONSUMER_CLASS_NAME = "kafka.consumer.Consumer";
+    private static final String KAFKA_07_SIMPLE_CONSUMER_CLASS_NAME =
+        "kafka.javaapi.consumer.SimpleConsumer";
     private static final String KAFKA_07_CONSUMER_CONFIG_CLASS_NAME = "kafka.consumer.ConsumerConfig";
     private static final String KAFKA_07_CONSUMER_STREAM_CLASS_NAME = "kafka.consumer.KafkaStream";
     private static final String KAFKA_07_CONSUMER_ITERATOR_CLASS_NAME = "kafka.consumer.ConsumerIterator";
@@ -70,6 +72,7 @@ public class KafkaMigrationTool
     private static Class<?> KafkaConsumerIteratorClass_07 = null;
     private static Class<?> KafkaMessageAndMetatDataClass_07 = null;
     private static Class<?> KafkaMessageClass_07 = null;
+    private static Class<?> KafkaSimpleConsumer_07 = null;
 
     /**
      * Snoops into error logs, and tracks topics whose offsets are invalid. This hack is
@@ -285,6 +288,7 @@ public class KafkaMigrationTool
             KafkaMessageClass_07 = c1.loadClass(KAFKA_07_MESSAGE_CLASS_NAME);
             KafkaConsumerIteratorClass_07 = c1.loadClass(KAFKA_07_CONSUMER_ITERATOR_CLASS_NAME);
             KafkaMessageAndMetatDataClass_07 = c1.loadClass(KAFKA_07_MESSAGE_AND_METADATA_CLASS_NAME);
+            KafkaSimpleConsumer_07 = c1.loadClass(KAFKA_07_SIMPLE_CONSUMER_CLASS_NAME);
 
             Constructor ConsumerConfigConstructor_07 = ConsumerConfig_07.getConstructor(Properties.class);
             final Properties kafkaConsumerProperties_07 = new Properties();
@@ -332,7 +336,7 @@ public class KafkaMigrationTool
             final String consumerGroup = kafkaConsumerProperties_07.getProperty(
                 KAFKA_07_CONSUMER_GROUP_PROPERTY);
             final OffsetLagMonitor offsetLagMonitor = new OffsetLagMonitor(
-                context, consumerGroup, new Kafka7LatestOffsetReaderImpl(c1),
+                context, consumerGroup, new Kafka7LatestOffsetReaderImpl(KafkaSimpleConsumer_07),
                 offsetLagMonitorPeriodSec);
 
             Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -371,7 +375,7 @@ public class KafkaMigrationTool
                             Kafka7OffsetFixer fixer = null;
                             try {
                                 fixer = new Kafka7OffsetFixer(
-                                    new Kafka7LatestOffsetReaderImpl(c1, true));
+                                    new Kafka7LatestOffsetReaderImpl(KafkaSimpleConsumer_07, true));
                                 for (String topic : topics) {
                                     try {
                                         fixer.fixOffset(consumerGroup, topic);

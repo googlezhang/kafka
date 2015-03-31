@@ -17,8 +17,7 @@ class Kafka7LatestOffsetReaderImpl implements Kafka7LatestOffsetReader {
 
     private static final int PARTITION_0 = 0;
     private static final long LATEST_OFFSET = -1L;
-    private static final String KAFKA_07_STATIC_SIMPLE_CONSUMER_CLASS_NAME =
-        "kafka.javaapi.consumer.SimpleConsumer";
+
     private static final int SO_TIMEOUT_MS = 10 * 1000;
     private static final int BUFFER_SIZE_BYTES = 1000 * 1024;
     private static final String LEAF_KAFKA_07_HOST = "localhost";
@@ -32,13 +31,13 @@ class Kafka7LatestOffsetReaderImpl implements Kafka7LatestOffsetReader {
     private Method simpleConsumerCloseMethod_07 = null;
     private boolean opened = false;
 
-    Kafka7LatestOffsetReaderImpl(ClassLoader cl) throws Exception {
-        this(cl, false);
+    Kafka7LatestOffsetReaderImpl(Class<?> simpleConsumerClass_07) throws Exception {
+        this(simpleConsumerClass_07, false);
     }
 
-    Kafka7LatestOffsetReaderImpl(ClassLoader cl, boolean open) throws Exception {
-        simpleConsumerClass_07 = cl.loadClass(KAFKA_07_STATIC_SIMPLE_CONSUMER_CLASS_NAME);
-        simpleConsumerConstructor_07 = simpleConsumerClass_07.getConstructor(
+    Kafka7LatestOffsetReaderImpl(Class<?> simpleConsumerClass_07, boolean open) throws Exception {
+        this.simpleConsumerClass_07 = simpleConsumerClass_07;
+        this.simpleConsumerConstructor_07 = simpleConsumerClass_07.getConstructor(
             String.class, int.class, int.class, int.class);
         if (open) {
             open();
