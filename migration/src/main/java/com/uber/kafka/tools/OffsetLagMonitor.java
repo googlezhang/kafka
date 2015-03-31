@@ -115,12 +115,13 @@ public class OffsetLagMonitor {
                     } else {
                         offsetLags.put(topic, offsetLag);
                     }
-                    if (!trackedTopics.contains(topic)) {
+                    String escapedTopic = MigrationMetrics.getEscapedTopicName(topic);
+                    if (!trackedTopics.contains(escapedTopic)) {
                         // Register a new gauge
                         MetricRegistry registry = context.getMetrics().getRegistry();
                         registry.register(MigrationMetrics.nameWithTopic(topic, "kafka_offset_lag"),
                             new KafkaOffsetLagGauge(topic));
-                        trackedTopics.add(topic);
+                        trackedTopics.add(escapedTopic);
                     }
                 }
             } finally {

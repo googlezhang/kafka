@@ -113,7 +113,7 @@ public class MigrationMetrics {
         }
     }
 
-    private static String getEscapedTopicName(String topic) {
+    public static String getEscapedTopicName(String topic) {
         // Convert "." with "_" to avoid messing up graphite log path
         return topic.replace('.', '_');
     }
