@@ -53,10 +53,10 @@ private object MetricsReporter extends KafkaMetricsReporterMBean {
                 (gauge.value, configs.get(topic)) match {
                   case (value: Long, Some(logRetentionBytes)) =>
                     sendToGraphite(epoch, sanitizeName(name),
-                                   "util " + (value / logRetentionBytes))
+                                   "util " + (value.toDouble / logRetentionBytes))
                   case (value: Long, None) =>
                     sendToGraphite(epoch, sanitizeName(name),
-                                   "util " + (value / kafkaConfig.logRetentionBytes))
+                                   "util " + (value.toDouble / kafkaConfig.logRetentionBytes))
                   case _ => logger.warn("Gauge is of wrong type: " + gauge)
                 }
               case _ =>
