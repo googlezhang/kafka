@@ -20,8 +20,8 @@ critical_thresholds = {
     'disk_full_alert' : 1400000000000,
 
     #isr alert 
-    'isr_expand_alert' : 0
-    'isr_shrink_alert' : 0
+    'isr_expand_alert' : 0,
+    'isr_shrink_alert' : 0,
 
 }
 
@@ -37,15 +37,15 @@ checks = {
    'absolute_cluster_io_wait_time' : 'movingAverage(averageSeries(servers.' + boxes + '.disk.sda.await),"30min")',
 
     #disk full alert
-   'disk_full_alert' : 'averageSeries(servers.' + boxes + '.disk.internal-root.used_bytes)'
+   'disk_full_alert' : 'averageSeries(servers.' + boxes + '.disk.internal-root.used_bytes)',
 
     #per topic mean rate: leaving it for now as part of the scala project
 
     #ISR expands per sec across cluster. Subjected to change after monitoring
-   'isr_expand_alert' : 'movingAverage(averageSeries(servers.' + boxes + '.kafka.server.ReplicaManager.IsrExpandsPerSec.meanRate),"5min")'
+   'isr_expand_alert' : 'movingAverage(averageSeries(servers.' + boxes + '.kafka.server.ReplicaManager.IsrExpandsPerSec.meanRate),"5min")',
     
     #ISR shrinks per sec across cluster. Subjected to change after monitoring
-   'isr_shrink_alert' : 'movingAverage(averageSeries(servers.' + boxes + '.kafka.server.ReplicaManager.IsrShrinksPerSec.meanRate),"5min")'
+   'isr_shrink_alert' : 'movingAverage(averageSeries(servers.' + boxes + '.kafka.server.ReplicaManager.IsrShrinksPerSec.meanRate),"5min")',
 
 }
 
