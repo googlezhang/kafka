@@ -570,10 +570,17 @@ public class KafkaMigrationTool
                     migrationThreadsThroughput.mark();
                 }
                 logger.info("Migration thread " + threadName + " finished running");
-            } catch (InvocationTargetException t){
-                logger.fatal("Migration thread failure due to root cause ", t.getCause());
+            } catch (InvocationTargetException t) {
+                Throwable cause = t.getCause();
+                // Can't use instanceof since the ConsumerTimeoutException belongs to Kafka 0.7
+                if (cause != null &&
+                        cause.getClass().getSimpleName().equals("ConsumerTimeoutException")) {
+                    logger.warn("Migration thread failure due to consumer timeout", cause);
+                } else {
+                    logger.fatal("Migration thread failure due to root cause ", cause);
+                }
                 context.setFailed();
-            } catch (Throwable t){
+            } catch (Throwable t) {
                 logger.fatal("Migration thread failure due to ", t);
                 context.setFailed();
             } finally {

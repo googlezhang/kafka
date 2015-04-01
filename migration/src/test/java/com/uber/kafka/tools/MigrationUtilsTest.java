@@ -5,14 +5,12 @@ package com.uber.kafka.tools;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.List;
 import java.util.Set;
 
-import com.google.common.collect.ImmutableSet;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Tests for {@link com.uber.kafka.tools.MigrationUtils}
