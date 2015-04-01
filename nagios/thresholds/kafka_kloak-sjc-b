@@ -53,4 +53,4 @@ for check in checks:
 
     graphite.absolute_threshold(checks[check], alias=check, warning_over=warn_thresholds.get(check), critical_over=critical_thresholds.get(check))
 
-graphite.relative_threshold('movingAverage(averageSeries(servers.' + boxes + '.disk.sda.await),"30min")', '-30min', warning_over=2.0, critical_over=2.5)
+graphite.relative_threshold('movingAverage(averageSeries(servers.' + boxes + '.disk.sda.await),"30min")', '-1d', warning_over=2.0, critical_over=2.5)
