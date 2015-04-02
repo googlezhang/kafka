@@ -49,7 +49,6 @@ topics = [
 	  "mobile_events",
 	  "money_fraud_creditcard_create_decline",
 	  "nagios_notifications",
-	  "onboarding_artemis_event",
 	  "zendesk_tickets_first_filed",
 	  "zendesk_tickets_first_reply",
 	  "zendesk_tickets_first_resolved",
