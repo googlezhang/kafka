@@ -13,7 +13,6 @@ topics = [
 	  "api_goldeta_accuracy",
 	  "api_lib_trips_trip_updator",
 	  "api_promotions_apply",
-	  "artemis_event_emitter_100hz_log",
 	  "cerebro_geosurge_recommended_multipliers_v2",
 	  "cleopatra_artemis_data_email",
 	  "cleopatra_artemis_data_sms",
