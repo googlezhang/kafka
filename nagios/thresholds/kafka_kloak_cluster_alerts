@@ -7,7 +7,7 @@ warn_thresholds = {
 
 critical_thresholds = {
     'leaderelection_alert' : 0,
-    'controller_count_bug' : 1,
+    'controller_count_bug' : 2,
     'cluster_under_replication' : 0.05,
     'absolute_cluster_io_wait_time' : 70,
     'isr_expand_alert' : 0,
