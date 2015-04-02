@@ -7,7 +7,6 @@ warn_thresholds = {
 
 critical_thresholds = {
     'leaderelection_alert' : 0,
-    'controller_count_bug' : 2,
     'cluster_under_replication' : 0.05,
     'absolute_cluster_io_wait_time' : 70,
     'isr_expand_alert' : 0,
@@ -15,7 +14,6 @@ critical_thresholds = {
 }
 
 checks = {
-    'controller_count_bug': 'sumSeries(servers.' + boxes + '.kafka.controller.KafkaController.ActiveControllerCount.value)',
     'leaderelection_alert' : 'sumSeries(servers.' + boxes + '.kafka.controller.ControllerStats.LeaderElectionRateAndTimeMs.1MinuteRate)',
     'cluster_under_replication' : 'movingAverage(averageSeries(servers.' + boxes + '.kafka.server.ReplicaManager.UnderReplicatedPartitions.value),"15min")',
     'absolute_cluster_io_wait_time' : 'movingAverage(averageSeries(servers.' + boxes + '.disk.sda.await),"30min")',

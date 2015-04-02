@@ -65,6 +65,6 @@ alertList = [
           Alerts("zendesk_tickets_first_resolved",),
          ]
 
-with open("./kloak_migrator_alerts","w") as file_ptr:
+with open("./kloak_migrator_lag_alerts","w") as file_ptr:
            for alert in alertList:
        	        alert.set_topic_alert(file_ptr)
