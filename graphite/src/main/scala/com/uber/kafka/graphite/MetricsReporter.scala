@@ -36,7 +36,7 @@ private object MetricsReporter extends KafkaMetricsReporterMBean {
     override def run {
       // Fetch configs for all topics on every polling period.
       configs = AdminUtils.fetchAllTopicConfigs(zkClient)
-                          .mapValues(_.getProperty("log.retention.bytes", "-1").toLong)
+                          .mapValues(_.getProperty("retention.bytes", "-1").toLong)
                           .filter(_._2 > 0)
                           .toMap
 
