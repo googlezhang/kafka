@@ -1,11 +1,11 @@
 warn_thresholds = {
     'max_lag_alert_mm_sjc1a' : 200000,
-    'consumer_messages_per_sec' : 1900,
+    'consumer_messages_per_sec' : 1000000,
 }
 
 critical_thresholds = {
     'max_lag_alert_mm_sjc1a' : 300000,
-    'consumer_messages_per_sec': 1800,
+    'consumer_messages_per_sec': 1500000,
 }
 
 checks = {

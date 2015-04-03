@@ -1,0 +1,19 @@
+warn_thresholds = {
+}
+
+critical_thresholds = {
+    'producer_failed_sends' : 0,
+    'producer_resends_persec' : 0,
+    'producer_serialization_errors_per_sec' : 0
+}
+
+checks = {
+    'producer_failed_sends' : 'sumSeries(servers.*-sjc1.kafka.producer.ProducerStats.migrator-*-FailedSendsPerSec.OneMinuteRate)',
+    'producer_resends_persec' : 'sumSeries(servers.*-sjc1.kafka.producer.ProducerStats.migrator-*-ResendsPerSec.OneMinuteRate)',
+    'producer_serialization_errors_per_sec' : 'sumSeries(servers.*-sjc1.kafka.producer.ProducerStats.migrator-*-SerializationErrorsPerSec.OneMinuteRate)'
+}
+
+for check in checks:
+    graphite.absolute_threshold(checks[check], alias=check, warning_over=warn_thresholds.get(check), critical_over=critical_thresholds.get(check))
+
+
