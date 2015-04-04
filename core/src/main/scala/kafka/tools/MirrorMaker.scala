@@ -76,6 +76,26 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
 
   private val shutdownMessage : MirrorMakerRecord = new MirrorMakerRecord("shutdown", 0, 0, null, "shutdown".getBytes)
 
+  newGauge("MirrorMaker-NumUnackedMessages",
+    new Gauge[Int] {
+      def value = numUnackedMessages.get()
+    })
+
+  // The number of unacked offsets in the unackedOffsetsMap
+  newGauge("MirrorMaker-UnackedOffsetListsSize",
+    new Gauge[Int] {
+      def value = unackedOffsetsMap.iterator.map{
+        case(_, unackedOffsets) => unackedOffsets.size
+      }.sum
+    })
+
+  // If a message send failed after retries are exhausted. The offset of the messages will also be removed from
+  // the unacked offset list to avoid offset commit being stuck on that offset. In this case, the offset of that
+  // message was not really acked, but was skipped. This metric records the number of skipped offsets.
+  newGauge("MirrorMaker-NumSkippedOffsets",
+    new Gauge[Int] {
+      def value = numSkippedUnackedMessages.get()
+    })
 
   def main(args: Array[String]) {
     
@@ -193,39 +213,8 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
     val consumerConfig = new ConsumerConfig(consumerConfigProps)
     connector = new ZookeeperConsumerConnector(consumerConfig)
 
-    // @note, @uber today since we run multiple mirror maker processes on a single box we do not have a way of
-    // distinguishing the various mirror data channels. Hence we tag the stats with the producer client id.
-    // read producer props to get client id
-    val producerProps = Utils.loadProps(options.valueOf(producerConfigOpt))
-    val clientId = producerProps.getProperty("client.id", "")
-    val tags = Map("clientId" -> clientId)
-
-    newGauge("MirrorMaker-NumUnackedMessages",
-      new Gauge[Int] {
-        def value = numUnackedMessages.get()
-      },
-      tags)
-
-    // The number of unacked offsets in the unackedOffsetsMap
-    newGauge("MirrorMaker-UnackedOffsetListsSize",
-      new Gauge[Int] {
-        def value = unackedOffsetsMap.iterator.map{
-          case(_, unackedOffsets) => unackedOffsets.size
-        }.sum
-      },
-      tags)
-
-    // If a message send failed after retries are exhausted. The offset of the messages will also be removed from
-    // the unacked offset list to avoid offset commit being stuck on that offset. In this case, the offset of that
-    // message was not really acked, but was skipped. This metric records the number of skipped offsets.
-    newGauge("MirrorMaker-NumSkippedOffsets",
-      new Gauge[Int] {
-        def value = numSkippedUnackedMessages.get()
-      },
-      tags)
-
     // create a data channel btw the consumers and the producers
-    val mirrorDataChannel = new DataChannel(bufferSize, bufferByteSize, numInputs = numStreams, numOutputs = numProducers, tags = tags)
+    val mirrorDataChannel = new DataChannel(bufferSize, bufferByteSize, numInputs = numStreams, numOutputs = numProducers)
 
     // set consumer rebalance listener
     // custom rebalance listener will be invoked after internal listener finishes its work.
@@ -256,6 +245,7 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
     } else Map.empty[String, String]
 
     // create producer threads
+    val producerProps = Utils.loadProps(options.valueOf(producerConfigOpt))
     val useNewProducer = {
       // Override producer settings if no.data.loss is set
       if (noDataLoss) {
@@ -267,7 +257,7 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
         options.has(useNewProducerOpt)
       }
     }
-
+    val clientId = producerProps.getProperty("client.id", "")
     producerThreads = (0 until numProducers).map(i => {
       producerProps.setProperty("client.id", clientId + "-" + i)
       val producer =
@@ -356,7 +346,7 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
     }
   }
 
-  class DataChannel(messageCapacity: Int, byteCapacity: Int, numInputs: Int, numOutputs: Int, tags : Map[String, String])
+  class DataChannel(messageCapacity: Int, byteCapacity: Int, numInputs: Int, numOutputs: Int)
       extends KafkaMetricsGroup {
 
     val queues = new Array[ByteBoundedBlockingQueue[MirrorMakerRecord]](numOutputs)
@@ -365,17 +355,17 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
     val sizeFunction = (record: MirrorMakerRecord) => record.size
     for (i <- 0 until numOutputs) {
       queues(i) = new ByteBoundedBlockingQueue[MirrorMakerRecord](messageCapacity, byteCapacity, Some(sizeFunction))
-      channelSizeHists(i) = newHistogram("MirrorMaker-DataChannel-queue-%d-NumMessages".format(i),true, tags)
-      channelByteSizeHists(i) = newHistogram("MirrorMaker-DataChannel-queue-%d-Bytes".format(i),true, tags)
+      channelSizeHists(i) = newHistogram("MirrorMaker-DataChannel-queue-%d-NumMessages".format(i))
+      channelByteSizeHists(i) = newHistogram("MirrorMaker-DataChannel-queue-%d-Bytes".format(i))
     }
-    private val channelRecordSizeHist = newHistogram("MirrorMaker-DataChannel-Record-Size", true, tags)
+    private val channelRecordSizeHist = newHistogram("MirrorMaker-DataChannel-Record-Size")
 
     // We use a single meter for aggregated wait percentage for the data channel.
     // Since meter is calculated as total_recorded_value / time_window and
     // time_window is independent of the number of threads, each recorded wait
     // time should be discounted by # threads.
-    private val waitPut = newMeter("MirrorMaker-DataChannel-WaitOnPut", "percent", TimeUnit.NANOSECONDS, tags)
-    private val waitTake = newMeter("MirrorMaker-DataChannel-WaitOnTake", "percent", TimeUnit.NANOSECONDS, tags)
+    private val waitPut = newMeter("MirrorMaker-DataChannel-WaitOnPut", "percent", TimeUnit.NANOSECONDS)
+    private val waitTake = newMeter("MirrorMaker-DataChannel-WaitOnTake", "percent", TimeUnit.NANOSECONDS)
 
     def put(record: MirrorMakerRecord) {
       // Use hash of source topic-partition to decide which queue to put the message in. The benefit is that
@@ -719,4 +709,3 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
     def size: Int = offsetList.size
   }
 }
-
