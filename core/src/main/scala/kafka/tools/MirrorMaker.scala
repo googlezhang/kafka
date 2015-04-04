@@ -224,11 +224,11 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
     val customRebalanceListenerClass = options.valueOf(consumerRebalanceListenerOpt)
     val customRebalanceListener = {
       if (customRebalanceListenerClass != null)
-        Some(Utils.createObject[ConsumerRebalanceListener](customRebalanceListenerClass))
+        Utils.createObject[ConsumerRebalanceListener](customRebalanceListenerClass)
       else
-        None
+        null
     }
-    consumerRebalanceListener = new InternalRebalanceListener(mirrorDataChannel, customRebalanceListener)
+    consumerRebalanceListener = new InternalRebalanceListener(mirrorDataChannel, Some(customRebalanceListener))
     connector.setConsumerRebalanceListener(consumerRebalanceListener)
 
     // initialize topic mappings for rewriting topic names between consuming side and producing side
