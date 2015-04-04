@@ -17,23 +17,25 @@
 
 package kafka.tools
 
-import java.util.Properties
-import java.util.concurrent._
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
-
 import com.yammer.metrics.core._
-import joptsimple.OptionParser
-import kafka.common.{OffsetAndMetadata, TopicAndPartition}
-import kafka.consumer._
+import kafka.common.{TopicAndPartition, OffsetAndMetadata}
 import kafka.javaapi.consumer.ConsumerRebalanceListener
-import kafka.metrics.KafkaMetricsGroup
-import kafka.producer.{KeyedMessage, ProducerConfig}
-import kafka.serializer._
 import kafka.utils._
+import kafka.consumer._
+import kafka.serializer._
+import kafka.producer.{KeyedMessage, ProducerConfig}
+import kafka.metrics.KafkaMetricsGroup
 import org.apache.kafka.clients.producer.internals.ErrorLoggingCallback
-import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord, RecordMetadata}
+import org.apache.kafka.clients.producer.{KafkaProducer, RecordMetadata, ProducerRecord}
+import org.apache.kafka.common.KafkaException
 
+import scala.collection.JavaConversions._
 import scala.io.Source
+
+import joptsimple.OptionParser
+import java.util.Properties
+import java.util.concurrent.atomic.{AtomicInteger, AtomicBoolean}
+import java.util.concurrent._
 
 /**
  * The mirror maker consists of three major modules:
@@ -62,6 +64,7 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
   private var consumerThreads: Seq[ConsumerThread] = null
   private var producerThreads: Seq[ProducerThread] = null
   private val isShuttingdown: AtomicBoolean = new AtomicBoolean(false)
+
   private val scheduler: KafkaScheduler = new KafkaScheduler(threads = 1)
 
   private val unackedOffsetsMap: Pool[TopicAndPartition, UnackedOffsets] =
@@ -261,15 +264,10 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
     producerThreads = (0 until numProducers).map(i => {
       producerProps.setProperty("client.id", clientId + "-" + i)
       val producer =
-        if (useNewProducer) {
-          producerProps.put(org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-            "org.apache.kafka.common.serialization.ByteArraySerializer")
-          producerProps.put(org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-            "org.apache.kafka.common.serialization.ByteArraySerializer")
-          new MirrorMakerNewProducer(producerProps)
-        }
-        else
-          new MirrorMakerOldProducer(producerProps)
+      if (useNewProducer)
+        new MirrorMakerNewProducer(producerProps)
+      else
+        new MirrorMakerOldProducer(producerProps)
       new ProducerThread(mirrorDataChannel, producer, topicMappings, i)
     })
 
@@ -359,13 +357,13 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
       channelByteSizeHists(i) = newHistogram("MirrorMaker-DataChannel-queue-%d-Bytes".format(i))
     }
     private val channelRecordSizeHist = newHistogram("MirrorMaker-DataChannel-Record-Size")
-
     // We use a single meter for aggregated wait percentage for the data channel.
     // Since meter is calculated as total_recorded_value / time_window and
     // time_window is independent of the number of threads, each recorded wait
     // time should be discounted by # threads.
     private val waitPut = newMeter("MirrorMaker-DataChannel-WaitOnPut", "percent", TimeUnit.NANOSECONDS)
     private val waitTake = newMeter("MirrorMaker-DataChannel-WaitOnTake", "percent", TimeUnit.NANOSECONDS)
+
 
     def put(record: MirrorMakerRecord) {
       // Use hash of source topic-partition to decide which queue to put the message in. The benefit is that
@@ -374,6 +372,7 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
         Utils.abs(java.util.Arrays.hashCode((record.sourceTopic + record.sourcePartition).toCharArray)) % numOutputs
       put(record, queueId)
     }
+
 
     def put(record: MirrorMakerRecord, queueId: Int) {
       val queue = queues(queueId)
@@ -558,12 +557,13 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
 
   private class MirrorMakerNewProducer (val producerProps: Properties) extends MirrorMakerBaseProducer {
 
+
     val sync = producerProps.getProperty("producer.type", "async").equals("sync")
 
     val producer = new KafkaProducer[Array[Byte], Array[Byte]](producerProps)
 
     override def send(sourceTopicPartition: TopicAndPartition, sourceOffset: Long, key: Array[Byte], value: Array[Byte]) {
-      val record = new ProducerRecord[Array[Byte], Array[Byte]](sourceTopicPartition.topic, key, value)
+      val record = new ProducerRecord(sourceTopicPartition.topic, key, value)
       if(sync) {
         this.producer.send(record).get()
         unackedOffsetsMap.getAndMaybePut(sourceTopicPartition).maybeUpdateMaxOffsetSeen(sourceOffset)
@@ -666,8 +666,9 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
                                           val sourceOffset: Long,
                                           val key: Array[Byte],
                                           val value: Array[Byte]) {
-    def size = {if (value == null) 0 else value.length} + {if (key == null) 0 else key.length}
+    def size = value.length + {if (key == null) 0 else key.length}
   }
+
 
   private class UnackedOffset(offset: Long) extends DoublyLinkedListNode[Long](offset) {
 
