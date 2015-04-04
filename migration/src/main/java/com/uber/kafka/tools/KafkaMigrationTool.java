@@ -80,13 +80,11 @@ public class KafkaMigrationTool
      * an exception when it encounters a message with invalid offset, the exception doesn't
      * contain any info about the topic associated with the message.
      */
-    private static class InvalidMessageAppender extends AppenderSkeleton {
+    private static class InvalidMessageAppender extends BaseAppender {
         private static final String FETCH_RUNNABLE_ERROR_PREFIX = "error in FetcherRunnable for ";
 
-        private final MigrationContext context;
-
-        public InvalidMessageAppender(MigrationContext context) {
-            this.context = context;
+        InvalidMessageAppender(MigrationContext context) {
+            super(context);
         }
 
         @Override
@@ -105,19 +103,35 @@ public class KafkaMigrationTool
             context.addTopicWithCorruptOffset(topic);
             logger.info("Detected topic with invalid offset: " + topic);
         }
+    }
+
+    /**
+     * Fails fast the migrator after running out of retries for zookeeper synced rebalance.
+     */
+    private static class SyncedRebalanceFailureKiller extends BaseAppender {
+        SyncedRebalanceFailureKiller(MigrationContext context) {
+            super(context);
+        }
 
         @Override
-        public void close() { }
-
-        @Override
-        public boolean requiresLayout() { return false; }
+        protected void append(LoggingEvent event) {
+            if (event.getLevel() != Level.ERROR) {
+                return;
+            }
+            String message = event.getRenderedMessage();
+            if (message != null && message.endsWith("error during syncedRebalance")) {
+                context.setFailed();
+                logger.warn("Ran out of retries for synced rebalance. Failing fast.");
+            }
+        }
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
         final MigrationContext context = new MigrationContext();
 
-        InvalidMessageAppender invalidMessageAppender = new InvalidMessageAppender(context);
-        Logger.getRootLogger().addAppender(invalidMessageAppender);
+        // Set up log4j appenders.
+        Logger.getRootLogger().addAppender(new InvalidMessageAppender(context));
+        Logger.getRootLogger().addAppender(new SyncedRebalanceFailureKiller(context));
 
         OptionParser parser = new OptionParser();
         ArgumentAcceptingOptionSpec<String> consumerConfigOpt
@@ -226,6 +240,14 @@ public class KafkaMigrationTool
             .ofType(Integer.class)
             .defaultsTo(-1);
 
+        ArgumentAcceptingOptionSpec<Boolean> removeUnreleasedConsumerLocksOpt
+            =  parser.accepts("clean.unreleased.consumer.locks",
+            "Whether to release all previously held consumer locks at start")
+            .withRequiredArg()
+            .describedAs("Whether to release all previously held consumer locks at start")
+            .ofType(Boolean.class)
+            .defaultsTo(false);
+
         OptionSpecBuilder helpOpt
             = parser.accepts("help", "Print this message.");
 
@@ -240,8 +262,11 @@ public class KafkaMigrationTool
             consumerConfigOpt, producerConfigOpt, zkClient01JarOpt, kafka07JarOpt, kafka08ZKHostsOpt});
         int whiteListCount = options.has(whitelistOpt) ? 1 : 0;
         int blackListCount = options.has(blacklistOpt) ? 1 : 0;
-        if(whiteListCount + blackListCount != 1) {
+        if (whiteListCount + blackListCount != 1) {
             System.err.println("Exactly one of whitelist or blacklist is required.");
+            System.exit(1);
+        } else if (blackListCount == 1) {
+            System.err.println("Blacklist is unsupported");
             System.exit(1);
         }
 
@@ -308,18 +333,22 @@ public class KafkaMigrationTool
                 TopicFilter_07, int.class);
             final Method ConsumerConnectorShutdownMethod_07 = ConsumerConnector_07.getMethod("shutdown");
             Constructor WhiteListConstructor_07 = WhiteList_07.getConstructor(String.class);
-            Constructor BlackListConstructor_07 = BlackList_07.getConstructor(String.class);
-            Object filterSpec = null;
-            if (options.has(whitelistOpt)) {
-                String whitelist = MigrationUtils.get().rewriteTopicWhitelist(
-                    kafka08ZKHosts, options.valueOf(whitelistOpt));
-                logger.info("Whitelist after rewrite: " + whitelist);
-                filterSpec = WhiteListConstructor_07.newInstance(whitelist);
+
+            String whitelist = MigrationUtils.get().rewriteTopicWhitelist(
+                kafka08ZKHosts, options.valueOf(whitelistOpt));
+            logger.info("Whitelist after rewrite: " + whitelist);
+            Object filterSpec = WhiteListConstructor_07.newInstance(whitelist);
+
+            final String consumerGroup = kafkaConsumerProperties_07.getProperty(
+                KAFKA_07_CONSUMER_GROUP_PROPERTY);
+
+            // Clean up consumer locks before establishing message streams.
+            boolean removeUnreleasedConsumerLocks = options.valueOf(removeUnreleasedConsumerLocksOpt);
+            if (removeUnreleasedConsumerLocks) {
+                logger.info("Removing previously unreleased consumer locks...");
+                MigrationUtils.get().removeUnreleasedConsumerLocks(consumerGroup, whitelist);
             } else {
-                String blacklist = MigrationUtils.get().rewriteTopicBlacklist(
-                    kafka08ZKHosts, options.valueOf(blacklistOpt));
-                logger.info("Blacklist after rewrite: " + blacklist);
-                filterSpec = BlackListConstructor_07.newInstance(blacklist);
+                logger.info("Skip removing previously unreleased consumer locks");
             }
 
             Object retKafkaStreams = ConsumerConnectorCreateMessageStreamsMethod_07.invoke(consumerConnector_07, filterSpec, numConsumers);
@@ -333,8 +362,6 @@ public class KafkaMigrationTool
             int threadId = 0;
 
             int offsetLagMonitorPeriodSec = options.valueOf(offsetLagMonitorPeriodSecOpt);
-            final String consumerGroup = kafkaConsumerProperties_07.getProperty(
-                KAFKA_07_CONSUMER_GROUP_PROPERTY);
             final OffsetLagMonitor offsetLagMonitor = new OffsetLagMonitor(
                 context, consumerGroup, new Kafka7LatestOffsetReaderImpl(KafkaSimpleConsumer_07),
                 offsetLagMonitorPeriodSec);

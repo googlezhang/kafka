@@ -5,8 +5,10 @@ package com.uber.kafka.tools;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.Set;
 
+import com.google.common.base.Splitter;
 import kafka.utils.ZkUtils;
 
 import org.I0Itec.zkclient.ZkClient;
@@ -23,12 +25,16 @@ import com.google.common.collect.Sets;
  */
 public class MigrationUtils {
 
+    private static final String LEAF_KAFKA07_ZK_HOST = "localhost:2182";
+
     private static final Logger LOGGER = Logger.getLogger(MigrationUtils.class);
 
     private static final int ZK_CONN_TIMEOUT_MS = 5 * 1000;
     private static final int ZK_SOCKET_TIMEOUT_MS = 30 * 1000;
 
-    private static final Joiner OR_DELIMITER = Joiner.on('|');
+    private static final char OR_DELIMITER = '|';
+    private static final Joiner OR_JOINER = Joiner.on(OR_DELIMITER);
+    private static final Splitter OR_SPLITTER = Splitter.on(OR_DELIMITER);
 
     private static final MigrationUtils INSTANCE = new MigrationUtils();
 
@@ -71,7 +77,7 @@ public class MigrationUtils {
                 LOGGER.info("Skip migrating topic " + topic);
             }
         }
-        return OR_DELIMITER.join(filteredTopics);
+        return OR_JOINER.join(filteredTopics);
     }
 
     public Set<String> getAllTopicsInKafka08(String kafka08ZKHosts) {
@@ -85,6 +91,47 @@ public class MigrationUtils {
             return res;
         } finally {
             zkClient.close();
+        }
+    }
+
+    public void removeUnreleasedConsumerLocks(String consumerGroup, String topicWhitelist) {
+        Set<String> whitelistedTopics = Sets.newHashSet(OR_SPLITTER.split(topicWhitelist));
+
+        ZkClient zkClient = newZkClient(LEAF_KAFKA07_ZK_HOST);
+        String basePath = String.format("/consumers/%s/ids", consumerGroup);
+        boolean didRemove = false;
+        try {
+            if (!zkClient.exists(basePath)) {
+                return;
+            }
+            List<String> registries = zkClient.getChildren(basePath);
+            for (String registry : registries) {
+                String registryPath = basePath + "/" + registry;
+                // Delete if the registry contains one of the whitelisted topics.
+                // Example content: *1*api.created_trips|artemis_staging_sjc1.query.log
+                byte[] dataBytes = zkClient.readData(registryPath);
+                if (dataBytes == null || dataBytes.length == 0) {
+                    continue;
+                }
+                String data = new String(dataBytes);
+                int startIdx = data.lastIndexOf('*');
+                if (startIdx < 0 || startIdx == data.length() - 1) {
+                    continue;
+                }
+                Set<String> topics = Sets.newHashSet(OR_SPLITTER.split(data.substring(startIdx + 1)));
+                if (!Sets.intersection(whitelistedTopics, topics).isEmpty()) {
+                    zkClient.delete(registryPath);
+                    LOGGER.info("Deleted lock: " + registryPath);
+                    didRemove = true;
+                }
+            }
+        } finally {
+            if (!didRemove) {
+                LOGGER.info("Didn't find any locks for removal: " + basePath);
+            }
+            if (zkClient != null) {
+                zkClient.close();
+            }
         }
     }
 
