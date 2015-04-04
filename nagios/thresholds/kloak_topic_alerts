@@ -1,13 +1,13 @@
 warn_thresholds = {
-       'scale_topic_up_out_decision':0.9
+       #'scale_topic_up_out_decision':0.9
 }
 
 critical_thresholds = {
-       'scale_topic_up_out_decision':0.95
+       #'scale_topic_up_out_decision':0.95
 }
 
 checks = {
-       'scale_topic_up_out_decision':'highestMax(averageSeriesWithWildcards(servers.kloak*-sjc1.kafka.log.Log.Size.*.*.util, 1, 7),1)'
+       #'scale_topic_up_out_decision':'highestMax(averageSeriesWithWildcards(servers.kloak*-sjc1.kafka.log.Log.Size.*.*.util, 1, 7),1)'
 }
 
 for check in checks:
