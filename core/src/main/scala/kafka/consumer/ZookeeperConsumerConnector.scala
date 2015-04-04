@@ -28,7 +28,6 @@ import kafka.api._
 import kafka.client.ClientUtils
 import kafka.cluster._
 import kafka.common._
-import kafka.javaapi.consumer.ConsumerRebalanceListener
 import kafka.metrics._
 import kafka.network.BlockingChannel
 import kafka.serializer._
@@ -40,7 +39,6 @@ import org.I0Itec.zkclient.{IZkChildListener, IZkDataListener, IZkStateListener,
 import org.apache.zookeeper.Watcher.Event.KeeperState
 
 import scala.collection._
-import scala.collection.JavaConversions._
 
 
 /**
@@ -104,7 +102,6 @@ private[kafka] class ZookeeperConsumerConnector(val config: ConsumerConfig,
   private val offsetsChannelLock = new Object
 
   private var wildcardTopicWatcher: ZookeeperTopicEventWatcher = null
-  private var consumerRebalanceListener: ConsumerRebalanceListener = null
 
   // useful for tracking migration of consumers to store offsets in kafka
   private val kafkaCommitMeter = newMeter("KafkaCommitsPerSec", "commits", TimeUnit.SECONDS, Map("clientId" -> config.clientId))
@@ -162,13 +159,6 @@ private[kafka] class ZookeeperConsumerConnector(val config: ConsumerConfig,
                                         valueDecoder: Decoder[V] = new DefaultDecoder()) = {
     val wildcardStreamsHandler = new WildcardStreamsHandler[K,V](topicFilter, numStreams, keyDecoder, valueDecoder)
     wildcardStreamsHandler.streams
-  }
-
-  def setConsumerRebalanceListener(listener: ConsumerRebalanceListener) {
-    if (messageStreamCreated.get())
-      throw new MessageStreamsExistException(this.getClass.getSimpleName +
-        " can only set consumer rebalance listener before creating streams",null)
-    consumerRebalanceListener = listener
   }
 
   private def createFetcher() {
@@ -296,27 +286,17 @@ private[kafka] class ZookeeperConsumerConnector(val config: ConsumerConfig,
     }
   }
 
-  /**
-   * KAFKA-1743: This method added for backward compatibility.
-   */
-  def commitOffsets { commitOffsets(true) }
-
   def commitOffsets(isAutoCommit: Boolean) {
-    commitOffsets(isAutoCommit, null)
-  }
-
-  def commitOffsets(isAutoCommit: Boolean,
-                    topicPartitionOffsets: immutable.Map[TopicAndPartition, OffsetAndMetadata]) {
     var retriesRemaining = 1 + (if (isAutoCommit) config.offsetsCommitMaxRetries else 0) // no retries for commits from auto-commit
     var done = false
 
     while (!done) {
       val committed = offsetsChannelLock synchronized { // committed when we receive either no error codes or only MetadataTooLarge errors
-        val offsetsToCommit = if (topicPartitionOffsets == null) {immutable.Map(topicRegistry.flatMap { case (topic, partitionTopicInfos) =>
+        val offsetsToCommit = immutable.Map(topicRegistry.flatMap { case (topic, partitionTopicInfos) =>
           partitionTopicInfos.map { case (partition, info) =>
             TopicAndPartition(info.topic, info.partitionId) -> OffsetAndMetadata(info.getConsumeOffset())
           }
-        }.toSeq:_*)} else topicPartitionOffsets
+        }.toSeq:_*)
 
         if (offsetsToCommit.size > 0) {
           if (config.offsetsStorage == "zookeeper") {
@@ -393,6 +373,11 @@ private[kafka] class ZookeeperConsumerConnector(val config: ConsumerConfig,
       }
     }
   }
+
+  /**
+   * KAFKA-1743: This method added for backward compatibility.
+   */
+  def commitOffsets { commitOffsets(true) }
 
   private def fetchOffsetFromZooKeeper(topicPartition: TopicAndPartition) = {
     val dirs = new ZKGroupTopicDirs(config.groupId, topicPartition.topic)
@@ -668,18 +653,9 @@ private[kafka] class ZookeeperConsumerConnector(val config: ConsumerConfig,
          * partitions in parallel. So, not stopping the fetchers leads to duplicate data.
          */
         closeFetchers(cluster, kafkaMessageAndMetadataStreams, myTopicThreadIdsMap)
-        if (consumerRebalanceListener != null) {
-          info("Calling beforeReleasingPartitions() from rebalance listener.")
-          consumerRebalanceListener.beforeReleasingPartitions(
-            if (topicRegistry.size == 0)
-              new java.util.HashMap[String, java.util.Set[java.lang.Integer]]
-            else
-              mapAsJavaMap(topicRegistry.map(topics =>
-                topics._1 -> topics._2.keys
-              ).toMap).asInstanceOf[java.util.Map[String, java.util.Set[java.lang.Integer]]]
-          )
-        }
+
         releasePartitionOwnership(topicRegistry)
+
         val assignmentContext = new AssignmentContext(group, consumerIdString, config.excludeInternalTopics, zkClient)
         val partitionOwnershipDecision = partitionAssignor.assign(assignmentContext)
         val currentTopicRegistry = new Pool[String, Pool[Int, PartitionTopicInfo]](
@@ -735,6 +711,7 @@ private[kafka] class ZookeeperConsumerConnector(val config: ConsumerConfig,
         case Some(f) =>
           f.stopConnections
           clearFetcherQueues(allPartitionInfos, cluster, queuesToBeCleared, messageStreams)
+          info("Committing all offsets after clearing the fetcher queues")
           /**
           * here, we need to commit offsets before stopping the consumer from returning any more messages
           * from the current data chunk. Since partition ownership is not yet released, this commit offsets
@@ -743,10 +720,8 @@ private[kafka] class ZookeeperConsumerConnector(val config: ConsumerConfig,
           * by the consumer, there will be no more messages returned by this iterator until the rebalancing finishes
           * successfully and the fetchers restart to fetch more data chunks
           **/
-        if (config.autoCommitEnable) {
-          info("Committing all offsets after clearing the fetcher queues")
+        if (config.autoCommitEnable)
           commitOffsets(true)
-        }
         case None =>
       }
     }

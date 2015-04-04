@@ -115,10 +115,6 @@ private[kafka] class ZookeeperConsumerConnector(val config: ConsumerConfig,
     underlying.commitOffsets(retryOnFailure)
   }
 
-  def setConsumerRebalanceListener(consumerRebalanceListener: ConsumerRebalanceListener) {
-    underlying.setConsumerRebalanceListener(consumerRebalanceListener)
-  }
-
   def shutdown() {
     underlying.shutdown
   }
