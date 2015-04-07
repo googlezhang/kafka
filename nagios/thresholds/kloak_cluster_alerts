@@ -7,7 +7,20 @@ warn_thresholds = {
 
 critical_thresholds = {
     'leaderelection_alert' : 0,
-    'cluster_under_replication' : 0.05,
+    #under replication alerts
+    'cluster_under_replication_partition_0': 0.99,
+    'cluster_under_replication_partition_1': 0.99,
+    'cluster_under_replication_partition_2': 0.99,
+    'cluster_under_replication_partition_3': 0.99,
+    'cluster_under_replication_partition_4': 0.99,
+    'cluster_under_replication_partition_5': 0.99,
+    'cluster_under_replication_partition_6': 0.99,
+    'cluster_under_replication_partition_7': 0.99,
+    'cluster_under_replication_partition_8': 0.99,
+    'cluster_under_replication_partition_9': 0.99,
+    'cluster_under_replication_partition_double_digit': 0.99,
+    'cluster_under_replication_partition_triple_digit': 0.99,  
+ 
     'absolute_cluster_io_wait_time' : 70,
     'isr_expand_alert' : 0,
     'isr_shrink_alert' : 0,
@@ -15,14 +28,26 @@ critical_thresholds = {
 
 checks = {
     'leaderelection_alert' : 'sumSeries(servers.' + boxes + '.kafka.controller.ControllerStats.LeaderElectionRateAndTimeMs.1MinuteRate)',
-    'cluster_under_replication' : 'movingAverage(averageSeries(servers.' + boxes + '.kafka.server.ReplicaManager.UnderReplicatedPartitions.value),"15min")',
+    #under replication alerts
+    'cluster_under_replication_partition_0': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.0.value,"15min"),1)',
+    'cluster_under_replication_partition_1': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.1.value,"15min"),1)',
+    'cluster_under_replication_partition_2': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.2.value,"15min"),1)',
+    'cluster_under_replication_partition_3': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.3.value,"15min"),1)',
+    'cluster_under_replication_partition_4': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.4.value,"15min"),1)',
+    'cluster_under_replication_partition_5': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.5.value,"15min"),1)',
+    'cluster_under_replication_partition_6': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.6.value,"15min"),1)',
+    'cluster_under_replication_partition_7': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.7.value,"15min"),1)',
+    'cluster_under_replication_partition_8': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.8.value,"15min"),1)',
+    'cluster_under_replication_partition_9': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.9.value,"15min"),1)',
+    'cluster_under_replication_partition_double_digit': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.??.value,"15min"),1)',
+    'cluster_under_replication_partition_triple_digit': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.???.value,"15min"),1)',
+
     'absolute_cluster_io_wait_time' : 'movingAverage(averageSeries(servers.' + boxes + '.disk.sda.await),"30min")',
     'isr_expand_alert' : 'movingAverage(averageSeries(servers.' + boxes + '.kafka.server.ReplicaManager.IsrExpandsPerSec.meanRate),"5min")',
     'isr_shrink_alert' : 'movingAverage(averageSeries(servers.' + boxes + '.kafka.server.ReplicaManager.IsrShrinksPerSec.meanRate),"5min")',
 }
 
 for check in checks:
-
     graphite.absolute_threshold(checks[check], alias=check, warning_over=warn_thresholds.get(check), critical_over=critical_thresholds.get(check))
 
 graphite.relative_threshold('movingAverage(averageSeries(servers.' + boxes + '.disk.sda.await),"30min")', '-1d', warning_over=3.0, critical_over=4)
