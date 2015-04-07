@@ -45,8 +45,7 @@ import com.google.common.collect.Maps;
  * kafka 0.7 to 0.8 online migration tool based on kafka.tools.KafkaMigrationTool.
  */
 @SuppressWarnings({"unchecked", "rawtypes"})
-public class KafkaMigrationTool
-{
+public class KafkaMigrationTool {
     private static final org.apache.log4j.Logger logger = org.apache.log4j.Logger.getLogger(KafkaMigrationTool.class.getName());
     private static final String KAFKA_07_STATIC_CONSUMER_CLASS_NAME = "kafka.consumer.Consumer";
     private static final String KAFKA_07_SIMPLE_CONSUMER_CLASS_NAME =
@@ -141,13 +140,13 @@ public class KafkaMigrationTool
             .ofType(String.class);
 
         ArgumentAcceptingOptionSpec<String> producerConfigOpt
-            =  parser.accepts("producer.config", "Producer config.")
+            = parser.accepts("producer.config", "Producer config.")
             .withRequiredArg()
             .describedAs("config file")
             .ofType(String.class);
 
         ArgumentAcceptingOptionSpec<Integer> numProducersOpt
-            =  parser.accepts("num.producers", "Number of producer instances")
+            = parser.accepts("num.producers", "Number of producer instances")
             .withRequiredArg()
             .describedAs("Number of producers")
             .ofType(Integer.class)
@@ -166,7 +165,7 @@ public class KafkaMigrationTool
             .ofType(String.class);
 
         ArgumentAcceptingOptionSpec<String> kafka08ZKHostsOpt
-            =  parser.accepts("kafka08.zookeeper.connect", "Zookeeper chroot path for the 0.8 cluster")
+            = parser.accepts("kafka08.zookeeper.connect", "Zookeeper chroot path for the 0.8 cluster")
             .withRequiredArg()
             .describedAs("Zookeeper chroot path for the 0.8 cluster")
             .ofType(String.class);
@@ -191,57 +190,57 @@ public class KafkaMigrationTool
             .ofType(String.class);
 
         ArgumentAcceptingOptionSpec<Integer> queueSizeOpt
-            =  parser.accepts("queue.size", "Number of messages that are buffered between the 0.7 consumer and 0.8 producer")
+            = parser.accepts("queue.size", "Number of messages that are buffered between the 0.7 consumer and 0.8 producer")
             .withRequiredArg()
             .describedAs("Queue size in terms of number of messages")
             .ofType(Integer.class)
             .defaultsTo(10000);
 
         ArgumentAcceptingOptionSpec<String> graphiteHostOpt
-            =  parser.accepts("graphite.host", "Graphite host for reporting metrics")
+            = parser.accepts("graphite.host", "Graphite host for reporting metrics")
             .withRequiredArg()
             .describedAs("Graphite host, e.g. <host>:<port>")
             .ofType(String.class)
             .defaultsTo("localhost:4756");  // statsrelay
 
         ArgumentAcceptingOptionSpec<Integer> graphiteReportPeriodSecOpt
-            =  parser.accepts("graphite.report.period.sec", "How often in seconds to report metrics to graphite; disabled if -1")
+            = parser.accepts("graphite.report.period.sec", "How often in seconds to report metrics to graphite; disabled if -1")
             .withRequiredArg()
             .describedAs("How often in seconds to report metrics to graphite; disabled if -1")
             .ofType(Integer.class)
             .defaultsTo(-1);
 
         ArgumentAcceptingOptionSpec<Integer> consoleReportPeriodSecOpt
-            =  parser.accepts("console.report.period.sec", "How often in seconds to report metrics to console; disabled if -1")
+            = parser.accepts("console.report.period.sec", "How often in seconds to report metrics to console; disabled if -1")
             .withRequiredArg()
             .describedAs("How often in seconds to report metrics to console; disabled if -1")
             .ofType(Integer.class)
             .defaultsTo(-1);
 
         ArgumentAcceptingOptionSpec<String> dataCenterPrefixOpt
-            =  parser.accepts("data.center.prefix", "Data center prefix used when logging to graphite")
+            = parser.accepts("data.center.prefix", "Data center prefix used when logging to graphite")
             .withRequiredArg()
             .describedAs("Data center prefix used when logging to graphite")
             .ofType(String.class)
             .defaultsTo("");
 
         ArgumentAcceptingOptionSpec<String> graphiteLogNamespaceOpt
-            =  parser.accepts("graphite.log.namespace", "Namespace used for graphite metric names")
+            = parser.accepts("graphite.log.namespace", "Namespace used for graphite metric names")
             .withRequiredArg()
             .describedAs("Namespace used for graphite metric names")
             .ofType(String.class)
             .defaultsTo("");
 
         ArgumentAcceptingOptionSpec<Integer> offsetLagMonitorPeriodSecOpt
-            =  parser.accepts("offset.lag.monitor.period.sec",
-                "How often in seconds to monitor Kafka 0.7 consumer offset lags; disabled if -1")
+            = parser.accepts("offset.lag.monitor.period.sec",
+            "How often in seconds to monitor Kafka 0.7 consumer offset lags; disabled if -1")
             .withRequiredArg()
             .describedAs("How often in seconds to monitor Kafka 0.7 consumer offset lags; disabled if -1")
             .ofType(Integer.class)
             .defaultsTo(-1);
 
         ArgumentAcceptingOptionSpec<Boolean> removeUnreleasedConsumerLocksOpt
-            =  parser.accepts("clean.unreleased.consumer.locks",
+            = parser.accepts("clean.unreleased.consumer.locks",
             "Whether to release all previously held consumer locks at start")
             .withRequiredArg()
             .describedAs("Whether to release all previously held consumer locks at start")
@@ -297,7 +296,7 @@ public class KafkaMigrationTool
         try {
             File kafkaJar_07 = new File(kafkaJarFile_07);
             File zkClientJar = new File(zkClientJarFile);
-            final ParentLastURLClassLoader c1 = new ParentLastURLClassLoader(new URL[] {
+            final ParentLastURLClassLoader c1 = new ParentLastURLClassLoader(new URL[]{
                 kafkaJar_07.toURI().toURL(),
                 zkClientJar.toURI().toURL()
             });
@@ -319,7 +318,7 @@ public class KafkaMigrationTool
             final Properties kafkaConsumerProperties_07 = new Properties();
             kafkaConsumerProperties_07.load(new FileInputStream(consumerConfigFile_07));
             /** Disable shallow iteration because the message format is different between 07 and 08, we have to get each individual message **/
-            if(kafkaConsumerProperties_07.getProperty("shallow.iterator.enable", "").equals("true")) {
+            if (kafkaConsumerProperties_07.getProperty("shallow.iterator.enable", "").equals("true")) {
                 logger.warn("Shallow iterator should not be used in the migration tool");
                 kafkaConsumerProperties_07.setProperty("shallow.iterator.enable", "false");
             }
@@ -398,7 +397,7 @@ public class KafkaMigrationTool
                         Set<String> topics = context.getTopicsWithCorruptOffset();
                         if (!topics.isEmpty()) {
                             logger.info("Fixing corrupt offsets for the following topics: " +
-                                    Joiner.on(", ").join(topics));
+                                Joiner.on(", ").join(topics));
                             Kafka7OffsetFixer fixer = null;
                             try {
                                 fixer = new Kafka7OffsetFixer(
@@ -430,10 +429,10 @@ public class KafkaMigrationTool
 
             // start consumer threads
             logger.info("Starting " + numConsumers + " migrator threads");
-            for(Object stream: (List)retKafkaStreams) {
+            for (Object stream : (List) retKafkaStreams) {
                 MigrationThread thread = new MigrationThread(
                     context, stream, producerDataChannel, threadId);
-                threadId ++;
+                threadId++;
                 thread.start();
                 migrationThreads.add(thread);
             }
@@ -460,8 +459,7 @@ public class KafkaMigrationTool
             while (!context.failed()) {
                 Thread.sleep(100L);
             }
-        }
-        catch (Throwable e){
+        } catch (Throwable e) {
             System.out.println("Kafka migration tool failed due to: " + Utils.stackTrace(e));
             logger.error("Kafka migration tool failed: ", e);
             context.setFailed();
@@ -471,12 +469,18 @@ public class KafkaMigrationTool
     }
 
     private static void checkRequiredArgs(OptionParser parser, OptionSet options, OptionSpec[] required) throws IOException {
-        for(OptionSpec arg : required) {
-            if(!options.has(arg)) {
+        for (OptionSpec arg : required) {
+            if (!options.has(arg)) {
                 System.err.println("Missing required argument \"" + arg + "\"");
                 parser.printHelpOn(System.err);
                 System.exit(1);
             }
+        }
+    }
+
+    static class ProducerDataChannelTimeoutException extends RuntimeException {
+        ProducerDataChannelTimeoutException(String message) {
+            super(message);
         }
     }
 
@@ -498,17 +502,19 @@ public class KafkaMigrationTool
             queueSizeHistogram = registry.histogram(MigrationMetrics.name("data_channel_size"));
         }
 
-        public void sendRequest(T data) throws InterruptedException {
+        public void sendRequest(T data) throws InterruptedException,
+                ProducerDataChannelTimeoutException {
             while (!context.failed()) {
                 if (producerRequestQueue.offer(data, OFFER_INTERVAL_MS, TimeUnit.MILLISECONDS)) {
                     queueSizeHistogram.update(size());
                     return;
                 }
             }
-            throw new RuntimeException("Migration failed. Failed to offer request");
+            throw new ProducerDataChannelTimeoutException("Migration failed. Failed to offer request");
         }
 
-        public T receiveRequest() throws InterruptedException {
+        public T receiveRequest() throws InterruptedException,
+                ProducerDataChannelTimeoutException {
             while (!context.failed()) {
                 T data = producerRequestQueue.poll(POLL_INTERVAL_MS, TimeUnit.MILLISECONDS);
                 if (data != null) {
@@ -516,7 +522,7 @@ public class KafkaMigrationTool
                     return data;
                 }
             }
-            throw new RuntimeException("Migration failed. Failed to get poll request");
+            throw new ProducerDataChannelTimeoutException("Migration failed. Failed to get poll request");
         }
 
         public int size() {
@@ -607,6 +613,11 @@ public class KafkaMigrationTool
                     logger.fatal("Migration thread failure due to root cause ", cause);
                 }
                 context.setFailed();
+            } catch (ProducerDataChannelTimeoutException e) {
+                // Log at warning level since what caused the producer data channel
+                // to throw is logged as error.
+                logger.warn("Producer data channel timed out", e);
+                context.setFailed();
             } catch (Throwable t) {
                 logger.fatal("Migration thread failure due to ", t);
                 context.setFailed();
@@ -688,6 +699,11 @@ public class KafkaMigrationTool
                     producerThreadsThroughput.mark();
                 }
                 logger.info("Producer thread " + threadName + " finished running");
+            } catch (ProducerDataChannelTimeoutException e) {
+                // Log at warning level since what caused the producer data channel
+                // to throw is logged as error.
+                logger.warn("Producer data channel timed out", e);
+                context.setFailed();
             } catch (Throwable t){
                 logger.fatal("Producer thread failure due to ", t);
                 context.setFailed();

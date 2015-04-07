@@ -94,6 +94,13 @@ public class MigrationUtils {
         }
     }
 
+    /**
+     * There are a few cases when zookeeper ephemeral lock held by high-level consumer is not
+     * properly released (the lock specifies topics claimed by the consumer), blocking subsequent
+     * consumers from processing topics claimed by the previous consumer. This method releases the
+     * locks if the topics for the locks collide with the topics that are processed by the
+     * current consumer.
+     */
     public void removeUnreleasedConsumerLocks(String consumerGroup, String topicWhitelist) {
         Set<String> whitelistedTopics = Sets.newHashSet(OR_SPLITTER.split(topicWhitelist));
 
