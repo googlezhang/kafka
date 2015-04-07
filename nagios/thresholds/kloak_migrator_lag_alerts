@@ -3,7 +3,6 @@ graphite.relative_threshold('movingAverage(maxSeries(stats.sjc1.migrator.kloak_a
 graphite.relative_threshold('movingAverage(maxSeries(stats.sjc1.migrator.kloak_a.api_created_trips.kafka_offset_lag.*),"15min")', '-7d', warning_over=4.0, critical_over=7.0)
 graphite.relative_threshold('movingAverage(maxSeries(stats.sjc1.migrator.kloak_a.api_db_nearestcab_logs_client.kafka_offset_lag.*),"15min")', '-7d', warning_over=4.0, critical_over=7.0)
 graphite.relative_threshold('movingAverage(maxSeries(stats.sjc1.migrator.kloak_a.api_driver_signups.kafka_offset_lag.*),"15min")', '-7d', warning_over=4.0, critical_over=7.0)
-graphite.relative_threshold('movingAverage(maxSeries(stats.sjc1.migrator.kloak_a.api_driver_status_change.kafka_offset_lag.*),"15min")', '-7d', warning_over=4.0, critical_over=7.0)
 graphite.relative_threshold('movingAverage(maxSeries(stats.sjc1.migrator.kloak_a.api_goldeta_accuracy.kafka_offset_lag.*),"15min")', '-7d', warning_over=4.0, critical_over=7.0)
 graphite.relative_threshold('movingAverage(maxSeries(stats.sjc1.migrator.kloak_a.api_lib_trips_trip_updator.kafka_offset_lag.*),"15min")', '-7d', warning_over=4.0, critical_over=7.0)
 graphite.relative_threshold('movingAverage(maxSeries(stats.sjc1.migrator.kloak_a.api_promotions_apply.kafka_offset_lag.*),"15min")', '-7d', warning_over=4.0, critical_over=7.0)

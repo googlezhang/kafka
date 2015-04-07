@@ -20,7 +20,7 @@ alertList = [
           Alerts("api_created_trips",),
           Alerts("api_db_nearestcab_logs_client",),
           Alerts("api_driver_signups",),
-          Alerts("api_driver_status_change",),
+          #Alerts("api_driver_status_change",),
           Alerts("api_goldeta_accuracy",),
           Alerts("api_lib_trips_trip_updator",),
           Alerts("api_promotions_apply",),
