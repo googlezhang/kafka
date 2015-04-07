@@ -28,7 +28,8 @@ critical_thresholds = {
 
 checks = {
     'leaderelection_alert' : 'sumSeries(servers.' + boxes + '.kafka.controller.ControllerStats.LeaderElectionRateAndTimeMs.1MinuteRate)',
-    #under replication alerts
+     #under replication alerts, refer the following for more information on this alert
+     #https://code.uberinternal.com/w/projects/kloak/monitoring/alerts/
     'cluster_under_replication_partition_0': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.0.value,"15min"),1)',
     'cluster_under_replication_partition_1': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.1.value,"15min"),1)',
     'cluster_under_replication_partition_2': 'highestMax(movingAverage(servers.' + boxes + '.kafka.cluster.Partition.UnderReplicated.*.2.value,"15min"),1)',
