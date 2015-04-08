@@ -2,15 +2,15 @@ import sys
 
 class Alerts:
 	  time = '"15min"'
-          def __init__(self, topic_name, warning=4.0, critical=7.0, dc="sjc1", env="kloak_a"):
+          def __init__(self, topic_name, warning=1000000, critical=3000000, dc="sjc1", env="kloak_a"):
                      self.warning = warning
                      self.critical = critical
                      self.topic_name = topic_name
                      self.dc = dc
                      self.env = env
-
+          
           def set_topic_alert(self,file_ptr):
-                     entry = "graphite.relative_threshold('movingAverage(maxSeries(stats." + self.dc + ".migrator." + self.env + "." + self.topic_name + ".kafka_offset_lag.*)," + Alerts.time + ")', '-7d', warning_over=4.0, critical_over=7.0)"
+                     entry = "graphite.absolute_threshold('movingAverage(maxSeries(stats." + self.dc + ".migrator." + self.env + "." + self.topic_name + ".kafka_offset_lag.*)," + Alerts.time + ")', alias='migrator_lag_alerts_" + self.topic_name + "', warning_over=" + str(self.warning) + ", critical_over=" + str(self.critical) + ")"
                      print >> file_ptr, entry
 
 
@@ -20,7 +20,7 @@ alertList = [
           Alerts("api_created_trips",),
           Alerts("api_db_nearestcab_logs_client",),
           Alerts("api_driver_signups",),
-          #Alerts("api_driver_status_change",),
+          Alerts("api_driver_status_change",),
           Alerts("api_goldeta_accuracy",),
           Alerts("api_lib_trips_trip_updator",),
           Alerts("api_promotions_apply",),
