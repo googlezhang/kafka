@@ -63,6 +63,11 @@ alertList = [
           Alerts("zendesk_tickets_first_filed",),
           Alerts("zendesk_tickets_first_reply",),
           Alerts("zendesk_tickets_first_resolved",),
+          Alerts("rt-san_francisco", env="kloak_b"),
+          Alerts("rt-london", env="kloak_b"),
+          Alerts("rt-new_york", env="kloak_b"),
+          Alerts("rt-chicago", env="kloak_b"),
+          Alerts("rt-washington_DC", env="kloak_b"), 
          ]
 
 with open("./kloak_migrator_lag_alerts","w") as file_ptr:
