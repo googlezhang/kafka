@@ -40,6 +40,7 @@ object Defaults {
   val Compact = false
   val UncleanLeaderElectionEnable = true
   val MinInSyncReplicas = 1
+  val Description = ""
 }
 
 /**
@@ -60,6 +61,7 @@ object Defaults {
  * @param uncleanLeaderElectionEnable Indicates whether unclean leader election is enabled; actually a controller-level property
  *                                    but included here for topic-specific configuration validation purposes
  * @param minInSyncReplicas If number of insync replicas drops below this number, we stop accepting writes with -1 (or all) required acks
+ * @param description Arbitrary string to describe the topic
  *
  */
 case class LogConfig(val segmentSize: Int = Defaults.SegmentSize,
@@ -77,7 +79,8 @@ case class LogConfig(val segmentSize: Int = Defaults.SegmentSize,
                      val minCleanableRatio: Double = Defaults.MinCleanableDirtyRatio,
                      val compact: Boolean = Defaults.Compact,
                      val uncleanLeaderElectionEnable: Boolean = Defaults.UncleanLeaderElectionEnable,
-                     val minInSyncReplicas: Int = Defaults.MinInSyncReplicas) {
+                     val minInSyncReplicas: Int = Defaults.MinInSyncReplicas,
+                     val description: String = Defaults.Description) {
 
   def toProps: Properties = {
     val props = new Properties()
@@ -98,6 +101,7 @@ case class LogConfig(val segmentSize: Int = Defaults.SegmentSize,
     props.put(CleanupPolicyProp, if(compact) "compact" else "delete")
     props.put(UncleanLeaderElectionEnableProp, uncleanLeaderElectionEnable.toString)
     props.put(MinInSyncReplicasProp, minInSyncReplicas.toString)
+    props.put(DescriptionProp, description)
     props
   }
 
@@ -122,6 +126,7 @@ object LogConfig {
   val CleanupPolicyProp = "cleanup.policy"
   val UncleanLeaderElectionEnableProp = "unclean.leader.election.enable"
   val MinInSyncReplicasProp = "min.insync.replicas"
+  val DescriptionProp = "description"
 
   val ConfigNames = Set(SegmentBytesProp,
                         SegmentMsProp,
@@ -138,7 +143,8 @@ object LogConfig {
                         MinCleanableDirtyRatioProp,
                         CleanupPolicyProp,
                         UncleanLeaderElectionEnableProp,
-                        MinInSyncReplicasProp)
+                        MinInSyncReplicasProp,
+                        DescriptionProp)
 
   /**
    * Parse the given properties instance into a LogConfig object
@@ -162,7 +168,8 @@ object LogConfig {
                     .trim.toLowerCase != "delete",
                   uncleanLeaderElectionEnable = props.getProperty(UncleanLeaderElectionEnableProp,
                     Defaults.UncleanLeaderElectionEnable.toString).toBoolean,
-                  minInSyncReplicas = props.getProperty(MinInSyncReplicasProp,Defaults.MinInSyncReplicas.toString).toInt)
+                  minInSyncReplicas = props.getProperty(MinInSyncReplicasProp,Defaults.MinInSyncReplicas.toString).toInt,
+                  description = props.getProperty(DescriptionProp, Defaults.Description))
   }
 
   /**
