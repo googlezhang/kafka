@@ -70,6 +70,15 @@ alertList = [
           Alerts("rt-washington_DC", env="kloak_b"), 
          ]
 
-with open("./kloak_migrator_lag_alerts","w") as file_ptr:
-           for alert in alertList:
-       	        alert.set_topic_alert(file_ptr)
+i = 0
+part = 0
+file_ptr = None
+#have only 10 checks per file so that we don't time out
+for alert in alertList:
+     if(i%10 == 0):
+           if(file_ptr!=None):
+                 file_ptr.close()
+           file_ptr = open("./kloak_migrator_lag_alerts_part_"+str(part),"w")  
+           part = part + 1
+     alert.set_topic_alert(file_ptr)
+     i = i+1
