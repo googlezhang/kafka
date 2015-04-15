@@ -1,0 +1,17 @@
+#under replication alerts, refer the following for more information on this alert
+#https://code.uberinternal.com/w/projects/kloak/monitoring/alerts/
+boxes = 'kloak*-sjc1'
+warn_thresholds = {
+}
+critical_thresholds = {
+    'cluster_under_replication_partition_3': 1.99,
+    'cluster_under_replication_partition_4': 1.99,
+    'cluster_under_replication_partition_5': 1.99,
+}
+checks = {
+    'cluster_under_replication_partition_3': 'highestMax(movingAverage(servers.' + boxes + '.*.kafka.cluster.Partition.UnderReplicated.*.3.value,"15min"),1)',
+    'cluster_under_replication_partition_4': 'highestMax(movingAverage(servers.' + boxes + '.*.kafka.cluster.Partition.UnderReplicated.*.4.value,"15min"),1)',
+    'cluster_under_replication_partition_5': 'highestMax(movingAverage(servers.' + boxes + '.*.kafka.cluster.Partition.UnderReplicated.*.5.value,"15min"),1)',
+}
+for check in checks:
+    graphite.absolute_threshold(checks[check], alias=check, warning_over=warn_thresholds.get(check), critical_over=critical_thresholds.get(check))

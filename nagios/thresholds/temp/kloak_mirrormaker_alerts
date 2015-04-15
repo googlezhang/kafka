@@ -1,0 +1,18 @@
+warn_thresholds = {
+    'max_lag_alert_mm_sjc1a' : 2000000,
+    'consumer_messages_per_sec' : 1000000,
+}
+
+critical_thresholds = {
+    'max_lag_alert_mm_sjc1a' : 2500000,
+    'consumer_messages_per_sec': 1500000,
+}
+
+checks = {
+    'max_lag_alert_mm_sjc1a' : 'movingAverage(averageSeries(servers.datapipe*.*.kafka.consumer.ConsumerFetcherManager.MaxLag.kloak-mirrormaker-sjc1a-*.Value),"15min")',
+    'consumer_messages_per_sec': 'movingAverage(averageSeries(servers.datapipe*.*.kafka.consumer.ConsumerTopicMetrics.MessagesPerSec.kloak-mirrormaker-sjc1a-*.OneMinuteRate),"15min")',
+}
+
+for check in checks:
+    graphite.absolute_threshold(checks[check], alias=check, warning_over=warn_thresholds.get(check), critical_over=critical_thresholds.get(check))
+
