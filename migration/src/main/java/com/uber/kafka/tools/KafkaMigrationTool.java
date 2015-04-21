@@ -67,7 +67,7 @@ public class KafkaMigrationTool {
     private static final String KAFKA_07_BLACK_LIST_CLASS_NAME = "kafka.consumer.Blacklist";
     private static final String KAFKA_07_CONSUMER_GROUP_PROPERTY = "groupid";
 
-    private static Map<String, AuditProducer> auditProducerMap = new HashMap<String, AuditProducer>();
+    private static final Map<String, AuditProducer> auditProducerMap = new HashMap<String, AuditProducer>();
 
     private static Class<?> KafkaStaticConsumer_07 = null;
     private static Class<?> ConsumerConfig_07 = null;
@@ -683,11 +683,16 @@ public class KafkaMigrationTool {
          */
         @Override
         public void onCompletion(RecordMetadata metadata, Exception exception) {
+            if (exception != null) {
+                return;
+            }
+
             try {
                 AuditProducer auditProducer = auditProducerMap.get(metadata.topic());
                 auditProducer.auditMessage(this.value);
             } catch (Exception e) {
-                logger.error("Unable to audit message: " + this.value, e);
+                // TODO: Track this in the exception metric
+                logger.warn("Unable to audit message: " + this.value, e);
             }
         }
     }
@@ -739,7 +744,6 @@ public class KafkaMigrationTool {
                         try {
                             // Audit the messages from topics that have been whitelisted
                             if (AuditConfig.WHITE_LISTED_TOPICS.contains(data.topic())) {
-
                                 // Note: not using object pooling since this object will be
                                 // in young gen and quickly cleaned up. In addition, Mirrormaker
                                 // also uses the same pattern.
