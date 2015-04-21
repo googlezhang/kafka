@@ -692,7 +692,7 @@ public class KafkaMigrationTool {
                 auditProducer.auditMessage(this.value);
             } catch (Exception e) {
                 // TODO: Track this in the exception metric
-                logger.warn("Unable to audit message: " + this.value, e);
+                logger.warn("Unable to audit message.", e);
             }
         }
     }
