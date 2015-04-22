@@ -6,13 +6,21 @@ warn_thresholds = {
 critical_thresholds = {
     'max_lag_alert_mm_sjc1a' : 2500000,
     'consumer_messages_per_sec': 1500000,
+    'rebalance_alert' : 0,
+    'record_queue_time' : 50,
+    'producer_waiting_threads' : 5,
 }
 
 checks = {
     'max_lag_alert_mm_sjc1a' : 'movingAverage(averageSeries(servers.datapipe*.kafka.consumer.ConsumerFetcherManager.MaxLag.kloak-mirrormaker-sjc1a-*.Value),"15min")',
     'consumer_messages_per_sec': 'movingAverage(averageSeries(servers.datapipe*.kafka.consumer.ConsumerTopicMetrics.MessagesPerSec.kloak-mirrormaker-sjc1a-*.OneMinuteRate),"15min")',
+    'rebalance_alert' : 'movingAverage(averageSeries(servers.datapipe*.kafka.consumer.ZookeeperConsumerConnector.RebalanceRateAndTime.*.OneMinuteRate),"15min")',
+    'record_queue_time' : 'movingAverage(maxSeries(servers.datapipe*.kafka.producer.producer-metrics.*.record-queue-time-avg),"15min")',
+    'producer_waiting_threads' : 'sumSeries(servers.datapipe*.kafka.producer.producer-metrics.*.waiting-threads)',
+    'consumer_owned_partition_count'    : 'movingAverage(averageSeries(servers.datapipe*.kafka.consumer.ZookeeperConsumerConnector.OwnedPartitionsCount.*.*.Value),"15min")',
 }
 
 for check in checks:
     graphite.absolute_threshold(checks[check], alias=check, warning_over=warn_thresholds.get(check), critical_over=critical_thresholds.get(check))
 
+graphite.absolute_threshold(checks['consumer_owned_partition_count'], alias='consumer_owned_partition_count', critical_under=1)
