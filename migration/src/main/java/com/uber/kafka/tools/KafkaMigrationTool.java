@@ -743,7 +743,7 @@ public class KafkaMigrationTool {
                         final Timer.Context producerSendCtx = producerSendTimer.time();
                         try {
                             // Audit the messages from topics that have been whitelisted
-                            if (AuditConfig.WHITE_LISTED_TOPICS.contains(data.topic())) {
+                            if (auditProducerMap.containsKey(data.topic())) {
                                 // Note: not using object pooling since this object will be
                                 // in young gen and quickly cleaned up. In addition, Mirrormaker
                                 // also uses the same pattern.
