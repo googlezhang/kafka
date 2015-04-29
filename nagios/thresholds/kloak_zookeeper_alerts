@@ -4,13 +4,13 @@ warn_thresholds = {
 }
 
 critical_thresholds = {
-     'outstanding_zookeeper_requests' : 50
-     'transactions_per_minute' : 420000
+     'outstanding_zookeeper_requests' : 50,
+     'transactions_per_minute' : 420000,
 }
 
 checks = {
-     'outstanding_zookeeper_requests' : 'movingAverage(maxSeries(servers.' + boxes + '.zookeeper.2181.outstanding),"15min")'
-     'transactions_per_minute' : 'movingAverage(highestMax(nonNegativeDerivative(servers.' + boxes + '.zookeeper.2181.zxid),1),"15min")'
+     'outstanding_zookeeper_requests' : 'movingAverage(maxSeries(servers.' + boxes + '.zookeeper.2181.outstanding),"15min")',
+     'transactions_per_minute' : 'movingAverage(highestMax(nonNegativeDerivative(servers.' + boxes + '.zookeeper.2181.zxid),1),"15min")',
 }
 
 for check in checks:
