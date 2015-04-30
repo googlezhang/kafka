@@ -4,10 +4,10 @@ boxes = 'kloak*'
 warn_thresholds = {
 }
 critical_thresholds = {
-    'cluster_under_replication_partition_0': 0.99,
+    'cluster_under_replication_partition_double_digit': 0.99,
 }
 checks = {
-    'cluster_under_replication_partition_0': 'highestMax(movingAverage(servers.' + boxes + '.*.kafka.cluster.Partition.UnderReplicated.*.0.value,"15min"),1)',
+    'cluster_under_replication_partition_double_digit': 'highestMax(movingAverage(servers.' + boxes + '.*.kafka.cluster.Partition.UnderReplicated.*.??.value,"15min"),1)',
 }
 for check in checks:
     graphite.absolute_threshold(checks[check], alias=check, warning_over=warn_thresholds.get(check), critical_over=critical_thresholds.get(check))

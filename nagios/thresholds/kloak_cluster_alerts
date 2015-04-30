@@ -1,5 +1,5 @@
 # vim: set ft=python
-boxes = 'kloak*-sjc1'
+boxes = 'kloak*'
 
 warn_thresholds = {
     'absolute_cluster_io_wait_time' : 60,
@@ -13,10 +13,10 @@ critical_thresholds = {
 }
 
 checks = {
-    'leaderelection_alert' : 'sumSeries(servers.' + boxes + '.kafka.controller.ControllerStats.LeaderElectionRateAndTimeMs.1MinuteRate)',
+    'leaderelection_alert' : 'sumSeries(servers.' + boxes + '.*.kafka.controller.ControllerStats.LeaderElectionRateAndTimeMs.1MinuteRate)',
     'absolute_cluster_io_wait_time' : 'movingAverage(averageSeries(servers.' + boxes + '.disk.sda.await),"30min")',
-    'isr_expand_alert' : 'movingAverage(averageSeries(servers.' + boxes + '.kafka.server.ReplicaManager.IsrExpandsPerSec.meanRate),"5min")',
-    'isr_shrink_alert' : 'movingAverage(averageSeries(servers.' + boxes + '.kafka.server.ReplicaManager.IsrShrinksPerSec.meanRate),"5min")',
+    'isr_expand_alert' : 'movingAverage(averageSeries(servers.' + boxes + '.*.kafka.server.ReplicaManager.IsrExpandsPerSec.meanRate),"5min")',
+    'isr_shrink_alert' : 'movingAverage(averageSeries(servers.' + boxes + '.*.kafka.server.ReplicaManager.IsrShrinksPerSec.meanRate),"5min")',
 }
 
 for check in checks:
