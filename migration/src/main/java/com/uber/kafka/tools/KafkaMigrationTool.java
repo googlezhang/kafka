@@ -452,6 +452,19 @@ public class KafkaMigrationTool {
                             }
                         }
                     }
+
+                    // Shutdown all the Audit producers
+                    for(Map.Entry<String, AuditProducer> entry: auditProducerMap.entrySet()) {
+                        try {
+                            AuditProducer producer = entry.getValue();
+                            producer.shutdown();
+                        } catch(Exception e) {
+                            // Log and continue
+                            logger.error("Unable to shutdown audit producer for topic: " + entry.getKey(), e);
+                        }
+                    }
+                    AuditProducer.shutdownReporter();
+
                     logger.info("Kafka migration tool shutdown successfully");
                 }
             });
