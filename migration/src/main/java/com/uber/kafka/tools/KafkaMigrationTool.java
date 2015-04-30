@@ -278,10 +278,6 @@ public class KafkaMigrationTool {
             System.exit(1);
         }
 
-        // Register exception rate metric
-        String exceptionRateName = MigrationMetrics.name("audit_exception_rate");
-        exceptionRate = context.getMetrics().getRegistry().meter(exceptionRateName);
-
         // Display common config used for auditing
         logger.info("Schema service path : " + AuditConfig.SCHEMA_SERVICE_PATH);
         logger.info("Schema service host : " + AuditConfig.SCHEMA_SERVICE_HOST);
@@ -323,6 +319,10 @@ public class KafkaMigrationTool {
         context.setMetrics(metrics);
 
         try {
+            // Register exception rate metric
+            String exceptionRateName = MigrationMetrics.name("audit_exception_rate");
+            exceptionRate = context.getMetrics().getRegistry().meter(exceptionRateName);
+
             File kafkaJar_07 = new File(kafkaJarFile_07);
             File zkClientJar = new File(zkClientJarFile);
             final ParentLastURLClassLoader c1 = new ParentLastURLClassLoader(new URL[]{
