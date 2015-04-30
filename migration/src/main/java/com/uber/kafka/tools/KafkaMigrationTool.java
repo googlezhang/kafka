@@ -68,6 +68,7 @@ public class KafkaMigrationTool {
     private static final String KAFKA_07_CONSUMER_GROUP_PROPERTY = "groupid";
 
     private static final Map<String, AuditProducer> auditProducerMap = new HashMap<String, AuditProducer>();
+    private static Meter exceptionRate;
 
     private static Class<?> KafkaStaticConsumer_07 = null;
     private static Class<?> ConsumerConfig_07 = null;
@@ -277,6 +278,10 @@ public class KafkaMigrationTool {
             System.exit(1);
         }
 
+        // Register exception rate metric
+        String exceptionRateName = MigrationMetrics.name("audit_exception_rate");
+        exceptionRate = context.getMetrics().getRegistry().meter(exceptionRateName);
+
         // Display common config used for auditing
         logger.info("Schema service path : " + AuditConfig.SCHEMA_SERVICE_PATH);
         logger.info("Schema service host : " + AuditConfig.SCHEMA_SERVICE_HOST);
@@ -288,8 +293,8 @@ public class KafkaMigrationTool {
                 auditProducerMap.put(topic, new AuditProducer(topic));
             } catch (Exception e) {
                 // Log error and skip auditing for this topic.
-                // TODO: Add a metric to track exception
                 logger.error("Unable to initialize Audit producer for topic: " + topic, e);
+                exceptionRate.mark();
             }
         }
 
@@ -691,8 +696,8 @@ public class KafkaMigrationTool {
                 AuditProducer auditProducer = auditProducerMap.get(metadata.topic());
                 auditProducer.auditMessage(this.value);
             } catch (Exception e) {
-                // TODO: Track this in the exception metric
                 logger.warn("Unable to audit message.", e);
+                exceptionRate.mark();
             }
         }
     }
