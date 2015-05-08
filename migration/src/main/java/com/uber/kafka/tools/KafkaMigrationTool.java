@@ -306,7 +306,7 @@ public class KafkaMigrationTool {
             // Register exception rate metric
             String exceptionRateName = MigrationMetrics.name("audit_exception_rate");
             exceptionRate = context.getMetrics().getRegistry().meter(exceptionRateName);
-            
+
             // Display common config used for auditing
             logger.info("Schema service path : " + AuditConfig.SCHEMA_SERVICE_PATH);
             logger.info("Schema service host : " + AuditConfig.SCHEMA_SERVICE_HOST);
@@ -315,7 +315,8 @@ public class KafkaMigrationTool {
             for (String topic : AuditConfig.WHITE_LISTED_TOPICS) {
                 logger.info("Initializing Audit producer for topic: " + topic);
                 try {
-                    auditProducerMap.put(topic, new AuditProducer(topic));
+                    AuditProducer producer = new AuditProducer(topic);
+                    auditProducerMap.put(topic, producer);
                 } catch (Exception e) {
                     // Log error and skip auditing for this topic.
                     logger.error("Unable to initialize Audit producer for topic: " + topic, e);
@@ -454,16 +455,20 @@ public class KafkaMigrationTool {
                     }
 
                     // Shutdown all the Audit producers
-                    for(Map.Entry<String, AuditProducer> entry: auditProducerMap.entrySet()) {
+                    for (Map.Entry<String, AuditProducer> entry : auditProducerMap.entrySet()) {
                         try {
                             AuditProducer producer = entry.getValue();
                             producer.shutdown();
-                        } catch(Exception e) {
+                        } catch (Exception e) {
                             // Log and continue
                             logger.error("Unable to shutdown audit producer for topic: " + entry.getKey(), e);
                         }
                     }
-                    AuditProducer.shutdownReporter();
+                    try {
+                        AuditProducer.shutdownReporter();
+                    } catch (Exception e) {
+                        logger.error("Unable to shutdown audit reporter", e);
+                    }
 
                     logger.info("Kafka migration tool shutdown successfully");
                 }
