@@ -278,22 +278,6 @@ public class KafkaMigrationTool {
             System.exit(1);
         }
 
-        // Display common config used for auditing
-        logger.info("Schema service path : " + AuditConfig.SCHEMA_SERVICE_PATH);
-        logger.info("Schema service host : " + AuditConfig.SCHEMA_SERVICE_HOST);
-        logger.info("Schema service port : " + AuditConfig.SCHEMA_SERVICE_PORT);
-        logger.info("White listed topics: " + AuditConfig.WHITE_LISTED_TOPICS);
-        for (String topic : AuditConfig.WHITE_LISTED_TOPICS) {
-            logger.info("Initializing Audit producer for topic: " + topic);
-            try {
-                auditProducerMap.put(topic, new AuditProducer(topic));
-            } catch (Exception e) {
-                // Log error and skip auditing for this topic.
-                logger.error("Unable to initialize Audit producer for topic: " + topic, e);
-                exceptionRate.mark();
-            }
-        }
-
         String kafkaJarFile_07 = options.valueOf(kafka07JarOpt);
         String zkClientJarFile = options.valueOf(zkClient01JarOpt);
         String consumerConfigFile_07 = options.valueOf(consumerConfigOpt);
@@ -322,6 +306,22 @@ public class KafkaMigrationTool {
             // Register exception rate metric
             String exceptionRateName = MigrationMetrics.name("audit_exception_rate");
             exceptionRate = context.getMetrics().getRegistry().meter(exceptionRateName);
+            
+            // Display common config used for auditing
+            logger.info("Schema service path : " + AuditConfig.SCHEMA_SERVICE_PATH);
+            logger.info("Schema service host : " + AuditConfig.SCHEMA_SERVICE_HOST);
+            logger.info("Schema service port : " + AuditConfig.SCHEMA_SERVICE_PORT);
+            logger.info("White listed topics: " + AuditConfig.WHITE_LISTED_TOPICS);
+            for (String topic : AuditConfig.WHITE_LISTED_TOPICS) {
+                logger.info("Initializing Audit producer for topic: " + topic);
+                try {
+                    auditProducerMap.put(topic, new AuditProducer(topic));
+                } catch (Exception e) {
+                    // Log error and skip auditing for this topic.
+                    logger.error("Unable to initialize Audit producer for topic: " + topic, e);
+                    exceptionRate.mark();
+                }
+            }
 
             File kafkaJar_07 = new File(kafkaJarFile_07);
             File zkClientJar = new File(zkClientJarFile);
