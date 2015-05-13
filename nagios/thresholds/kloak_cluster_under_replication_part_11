@@ -4,7 +4,7 @@ boxes = 'kloak*'
 warn_thresholds = {
 }
 critical_thresholds = {
-    'cluster_under_replication_partition_triple_digit': 1.99,
+    'cluster_under_replication_partition_triple_digit': 0.99,
 }
 checks = {
     'cluster_under_replication_partition_triple_digit': 'highestMax(movingAverage(servers.' + boxes + '.*.kafka.cluster.Partition.UnderReplicated.*.???.value,"15min"),1)',
