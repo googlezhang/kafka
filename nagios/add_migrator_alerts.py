@@ -78,7 +78,7 @@ for alert in alertList:
      if(i%10 == 0):
            if(file_ptr!=None):
                  file_ptr.close()
-           file_ptr = open("./kloak_migrator_lag_alerts_part_"+str(part),"w")  
+           file_ptr = open("./thresholds/kloak_migrator_lag_alerts_part_"+str(part),"w")  
            part = part + 1
      alert.set_topic_alert(file_ptr)
      i = i+1
