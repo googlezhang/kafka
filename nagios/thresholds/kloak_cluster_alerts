@@ -8,8 +8,6 @@ warn_thresholds = {
 critical_thresholds = {
     'leaderelection_alert' : 0,
     'absolute_cluster_io_wait_time' : 70,
-    'isr_expand_alert' : 0,
-    'isr_shrink_alert' : 0,
 }
 
 checks = {
