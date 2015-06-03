@@ -117,12 +117,18 @@ class KafkaConfig private (val props: VerifiableProperties) extends ZKConfig(pro
 
   /* the maximum number of bytes in a socket request */
   val socketRequestMaxBytes: Int = props.getIntInRange("socket.request.max.bytes", 100*1024*1024, (1, Int.MaxValue))
-  
+
+  /* the maximum number of connections we allow to the broker */
+  val maxConnections: Int = props.getIntInRange("max.connections", 50000, (1, Int.MaxValue))
+
   /* the maximum number of connections we allow from each ip address */
   val maxConnectionsPerIp: Int = props.getIntInRange("max.connections.per.ip", Int.MaxValue, (1, Int.MaxValue))
   
   /* per-ip or hostname overrides to the default maximum number of connections */
   val maxConnectionsPerIpOverrides = props.getMap("max.connections.per.ip.overrides").map(entry => (entry._1, entry._2.toInt))
+
+  /* hostname regex overrides to the default maximum number of connections */
+  val maxConnectionsPerRegexOverrides = props.getMap("max.connections.per.regex.overrides").map(entry => (entry._1, entry._2.toInt))
 
   /* idle connections timeout: the server socket processor threads close the connections that idle more than this */
   val connectionsMaxIdleMs = props.getLong("connections.max.idle.ms", 10*60*1000L)

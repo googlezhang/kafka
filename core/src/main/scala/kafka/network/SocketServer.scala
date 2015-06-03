@@ -45,9 +45,11 @@ class SocketServer(val brokerId: Int,
                    val sendBufferSize: Int,
                    val recvBufferSize: Int,
                    val maxRequestSize: Int = Int.MaxValue,
+                   val maxConnections: Int = Int.MaxValue,
                    val maxConnectionsPerIp: Int = Int.MaxValue,
                    val connectionsMaxIdleMs: Long,
-                   val maxConnectionsPerIpOverrides: Map[String, Int] ) extends Logging with KafkaMetricsGroup {
+                   val maxConnectionsPerIpOverrides: Map[String, Int],
+                   val maxConnectionsPerRegexOverrides: Map[String, Int] ) extends Logging with KafkaMetricsGroup {
   this.logIdent = "[Socket Server on Broker " + brokerId + "], "
   private val time = SystemTime
   private val processors = new Array[Processor](numProcessorThreads)
@@ -61,7 +63,8 @@ class SocketServer(val brokerId: Int,
    * Start the socket server
    */
   def startup() {
-    val quotas = new ConnectionQuotas(maxConnectionsPerIp, maxConnectionsPerIpOverrides)
+    val quotas = new ConnectionQuotas(maxConnections, maxConnectionsPerIp,
+                                      maxConnectionsPerIpOverrides, maxConnectionsPerRegexOverrides)
     for(i <- 0 until numProcessorThreads) {
       processors(i) = new Processor(i, 
                                     time, 
@@ -505,17 +508,30 @@ private[kafka] class Processor(val id: Int,
 
 }
 
-class ConnectionQuotas(val defaultMax: Int, overrideQuotas: Map[String, Int]) {
+class ConnectionQuotas(val totalMax: Int, val defaultMax: Int,
+                       overrideQuotas: Map[String, Int], overrideRegexQuotas: Map[String, Int]) {
   private val overrides = overrideQuotas.map(entry => (InetAddress.getByName(entry._1), entry._2))
+  private val regexOverrides = overrideRegexQuotas.toSeq.map(entry => (entry._1.r, entry._2))
+  private var total = 0
   private val counts = mutable.Map[InetAddress, Int]()
   
+  private def regexMax(hostname: String): Option[Int] = {
+    regexOverrides.find(_._1.pattern.matcher(hostname).matches)
+                  .map(_._2)
+  }
+
   def inc(addr: InetAddress) {
     counts synchronized {
       val count = counts.getOrElse(addr, 0)
       counts.put(addr, count + 1)
-      val max = overrides.getOrElse(addr, defaultMax)
+      val max = overrides.getOrElse(addr, regexMax(addr.getHostName).getOrElse(defaultMax))
       if(count >= max)
         throw new TooManyConnectionsException(addr, max)
+      else if (total >= totalMax)
+        throw new TooManyTotalConnectionsException(totalMax)
+      else {
+        total = total + 1
+      }
     }
   }
   
@@ -526,9 +542,12 @@ class ConnectionQuotas(val defaultMax: Int, overrideQuotas: Map[String, Int]) {
         counts.remove(addr)
       else
         counts.put(addr, count - 1)
+      total = total - 1
     }
   }
   
 }
 
 class TooManyConnectionsException(val ip: InetAddress, val count: Int) extends KafkaException("Too many connections from %s (maximum = %d)".format(ip, count))
+
+class TooManyTotalConnectionsException(val total: Int) extends KafkaException("Too many connections to broker (maximum = %d)".format(total))

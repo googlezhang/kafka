@@ -42,9 +42,11 @@ class SocketServerTest extends JUnitSuite {
                                               sendBufferSize = 300000,
                                               recvBufferSize = 300000,
                                               maxRequestSize = 50,
+                                              maxConnections = 100,
                                               maxConnectionsPerIp = 5,
                                               connectionsMaxIdleMs = 60*1000,
-                                              maxConnectionsPerIpOverrides = Map.empty[String,Int])
+                                              maxConnectionsPerIpOverrides = Map.empty[String,Int],
+                                              maxConnectionsPerRegexOverrides = Map.empty[String,Int])
   server.startup()
 
   def sendRequest(socket: Socket, id: Short, request: Array[Byte]) {
@@ -144,6 +146,16 @@ class SocketServerTest extends JUnitSuite {
   }
 
   @Test
+  def testMaxConnections() {
+    // make the maximum allowable number of connections and then leak them
+    val conns = (0 until server.maxConnections).map(i => connect())
+    // now try one more (should fail)
+      val conn = connect()
+      conn.setSoTimeout(3000)
+      assertEquals(-1, conn.getInputStream().read())
+  }
+
+  @Test
   def testMaxConnectionsPerIp() {
     // make the maximum allowable number of connections and then leak them
     val conns = (0 until server.maxConnectionsPerIp).map(i => connect())
@@ -152,6 +164,7 @@ class SocketServerTest extends JUnitSuite {
       conn.setSoTimeout(3000)
       assertEquals(-1, conn.getInputStream().read())
   }
+
   @Test
   def testMaxConnectionsPerIPOverrides(): Unit = {
     val overrideNum = 6
@@ -164,9 +177,38 @@ class SocketServerTest extends JUnitSuite {
                                                 sendBufferSize = 300000,
                                                 recvBufferSize = 300000,
                                                 maxRequestSize = 50,
+                                                maxConnections = 10,
                                                 maxConnectionsPerIp = 5,
                                                 connectionsMaxIdleMs = 60*1000,
-                                                maxConnectionsPerIpOverrides = overrides)
+                                                maxConnectionsPerIpOverrides = overrides,
+                                                maxConnectionsPerRegexOverrides = Map.empty[String,Int])
+    overrideServer.startup()
+    // make the maximum allowable number of connections and then leak them
+    val conns = ((0 until overrideNum).map(i => connect(overrideServer)))
+    // now try one more (should fail)
+    val conn = connect(overrideServer)
+    conn.setSoTimeout(3000)
+    assertEquals(-1, conn.getInputStream.read())
+    overrideServer.shutdown()
+  }
+
+  @Test
+  def testMaxConnectionsPerRegexOverrides(): Unit = {
+    val overrideNum = 6
+    val overrides: Map[String, Int] = Map("local.*" -> overrideNum)
+    val overrideServer: SocketServer = new SocketServer(0,
+                                                host = null,
+                                                port = kafka.utils.TestUtils.choosePort,
+                                                numProcessorThreads = 1,
+                                                maxQueuedRequests = 50,
+                                                sendBufferSize = 300000,
+                                                recvBufferSize = 300000,
+                                                maxRequestSize = 50,
+                                                maxConnections = 10,
+                                                maxConnectionsPerIp = 5,
+                                                connectionsMaxIdleMs = 60*1000,
+                                                maxConnectionsPerIpOverrides = Map.empty[String,Int],
+                                                maxConnectionsPerRegexOverrides = overrides)
     overrideServer.startup()
     // make the maximum allowable number of connections and then leak them
     val conns = ((0 until overrideNum).map(i => connect(overrideServer)))
