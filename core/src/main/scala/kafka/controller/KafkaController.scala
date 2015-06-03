@@ -149,6 +149,11 @@ object KafkaController extends Logging {
         }
     }
   }
+
+  case class UnderReplicatedPartitionsException(val underReplicatedPartitions: Set[TopicAndPartition]) extends
+      RuntimeException("The following topic partitions are under replicated: " + underReplicatedPartitions) {
+    def this() = this(null)
+  }
 }
 
 class KafkaController(val config : KafkaConfig, zkClient: ZkClient, val brokerState: BrokerState) extends Logging with KafkaMetricsGroup {
@@ -256,7 +261,7 @@ class KafkaController(val config : KafkaConfig, zkClient: ZkClient, val brokerSt
           }
       }
       if (underReplicatedPartitions.nonEmpty)
-        throw new NotEnoughReplicasException("The following topic partitions are under replicated: " + underReplicatedPartitions)
+        KafkaController.UnderReplicatedPartitionsException(underReplicatedPartitions.map(_._1))
 
       allPartitionsAndReplicationFactorOnBroker.foreach {
         case(topicAndPartition, replicationFactor) =>

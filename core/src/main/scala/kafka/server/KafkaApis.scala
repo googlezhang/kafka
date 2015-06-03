@@ -151,9 +151,15 @@ class KafkaApis(val requestChannel: RequestChannel,
     // We can't have the ensureTopicExists check here since the controller sends it as an advisory to all brokers so they
     // stop serving data to clients for the topic being deleted
     val controlledShutdownRequest = request.requestObj.asInstanceOf[ControlledShutdownRequest]
-    val partitionsRemaining = controller.shutdownBroker(controlledShutdownRequest.brokerId)
-    val controlledShutdownResponse = new ControlledShutdownResponse(controlledShutdownRequest.correlationId,
-      ErrorMapping.NoError, partitionsRemaining)
+    val controlledShutdownResponse = try {
+      val partitionsRemaining = controller.shutdownBroker(controlledShutdownRequest.brokerId)
+      new ControlledShutdownResponse(controlledShutdownRequest.correlationId,
+        ErrorMapping.NoError, partitionsRemaining)
+    } catch {
+      case KafkaController.UnderReplicatedPartitionsException(underReplicatedPartitions) =>
+        new ControlledShutdownResponse(controlledShutdownRequest.correlationId,
+          ErrorMapping.NotEnoughReplicasCode, underReplicatedPartitions)
+    }
     requestChannel.sendResponse(new Response(request, new BoundedByteBufferSend(controlledShutdownResponse)))
   }
 
